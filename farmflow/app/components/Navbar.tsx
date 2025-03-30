@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 
 const styles = {
@@ -37,9 +37,6 @@ const styles = {
     fontSize: '16px',
     cursor: 'pointer',
     transition: 'all 0.2s ease',
-    ':hover': {
-      backgroundColor: '#f5f5f5',
-    },
   },
   activeNavButton: {
     backgroundColor: '#f0f7ed',
@@ -68,11 +65,22 @@ const styles = {
 
 export default function Navbar() {
   const router = useRouter();
-  const [activePage, setActivePage] = React.useState('/dashboard');
+  const [activePage, setActivePage] = React.useState(() => {
+    // Initialize from localStorage or default to '/dashboard'
+    return localStorage.getItem('activePage') || '/dashboard';
+  });
+
+  // Update activePage based on current path when component mounts
+  useEffect(() => {
+    const currentPath = window.location.pathname;
+    if (currentPath !== activePage) {
+      setActivePage(currentPath);
+    }
+  }, []);
 
   const handleNavigation = (path: string) => {
     setActivePage(path);
-    router.push(path);
+    router.push(path as any); // Using type assertion to fix TypeScript error temporarily
   };
 
   const handleLogout = () => {

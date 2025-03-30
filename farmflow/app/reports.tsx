@@ -1,4 +1,5 @@
 import React from 'react';
+import { useRouter } from 'expo-router';
 import Navbar from './components/Navbar';
 
 const styles = {
@@ -75,8 +76,8 @@ const reports = [
   {
     id: 1,
     title: "Greenhouse Overview",
-    description: "Summary of all greenhouses, including size and current status.",
-    chartType: "Bar Chart",
+    description: "Summary of all greenhouses, including size, temperature, humidity, and harvest dates.",
+    chartType: "Statistics & Table",
   },
   {
     id: 2,
@@ -99,8 +100,10 @@ const reports = [
 ];
 
 export default function ReportsScreen() {
+  const router = useRouter();
+
   const handleViewReport = (id: number) => {
-    window.location.href = `/report/${id}`;
+    router.push(`/report/${id}`);
   };
 
   return (
@@ -116,7 +119,7 @@ export default function ReportsScreen() {
             <div key={report.id} style={styles.reportCard}>
               <div style={styles.reportTitle}>{report.title}</div>
               <div style={styles.placeholder}>
-                {report.chartType} Placeholder
+                {report.chartType}
               </div>
               <div style={styles.reportDescription}>{report.description}</div>
               <button
