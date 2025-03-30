@@ -1,10 +1,14 @@
 from django.contrib import admin
-from .models import User
+from .models import User, Greenhouse
 
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
-    list_display = ('id', 'first_name', 'last_name', 'email', 'phone_number')
-    search_fields = ('first_name', 'last_name', 'email', 'phone_number')
-    list_filter = ('favorite_color',)
+    list_display = ('id', 'username', 'email')
+    search_fields = ('username', 'email')
+
+@admin.register(Greenhouse)
+class GreenhouseAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'size', 'created_at')
+    search_fields = ('name',)
 
 

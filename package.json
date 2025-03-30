@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@expo/config": "^10.0.10"
+  }
+}
