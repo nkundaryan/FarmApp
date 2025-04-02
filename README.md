@@ -1,105 +1,60 @@
-# FarmFlow
+# 🌱 FarmFlow – Greenhouse & Field Management System
 
-FarmFlow is a modern greenhouse management system that helps farmers monitor and manage their greenhouses efficiently.
+**FarmFlow** is a full-stack web app built to help small- and medium-sized farms in Rwanda manage their greenhouse operations. It replaces paper-based tracking with a simple digital system to monitor crops, tasks, harvests, and deliveries — all in one place.
 
-## Features
+---
 
-- **Dashboard**: Get a quick overview of all your greenhouses and tasks
-- **Greenhouse Management**: Add, view, and manage greenhouses
-- **Task Management**: Create and track tasks for each greenhouse
-- **Reports**: View detailed analytics and reports about your greenhouse operations
-- **Settings**: Customize your experience with user preferences
+## 🚜 Why It Matters
 
-## Tech Stack
+In Rwanda, many farms still rely on notebooks or WhatsApp to track planting and harvest schedules. FarmFlow helps organize greenhouse operations with a clean, mobile-first dashboard designed specifically for **low-bandwidth environments** and **non-technical users**.
 
-### Frontend
-- React
-- TypeScript
-- Modern CSS-in-JS styling
+---
 
-### Backend
-- Django
-- Django REST Framework
-- SQLite (can be scaled to PostgreSQL)
+## 👨🏾‍💻 My Role
 
-## Getting Started
+- Designed and built the app end-to-end  
+- Interviewed farm managers to understand pain points  
+- Focused on a tablet-friendly UI for use in the field  
+- Prioritized simplicity, clarity, and future scalability
 
-### Prerequisites
-- Python 3.8 or higher
-- Node.js 14 or higher
-- npm or yarn
+---
 
-### Backend Setup
-1. Navigate to the backend directory:
-   ```bash
-   cd django_back_end
-   ```
+## 🛠️ Tech Stack
 
-2. Create and activate a virtual environment:
-   ```bash
-   python -m venv myvenv
-   source myvenv/bin/activate  # On Windows: myvenv\Scripts\activate
-   ```
+**Frontend:** React + TailwindCSS  
+**Backend:** Django + PostgreSQL  
+**API:** Django REST Framework  
+**Dev Tools:** Git, GitHub, VS Code, Vercel  
+**Data Handling:** pandas, CSV validation
 
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+---
 
-4. Run migrations:
-   ```bash
-   python manage.py migrate
-   ```
+## ✨ Key Features
 
-5. Start the development server:
-   ```bash
-   python manage.py runserver
-   ```
+✅ **Greenhouse Dashboard**  
+- Grid view of 10 greenhouses  
+- Shows current crops, next harvest date, and tasks per greenhouse
 
-### Frontend Setup
-1. Navigate to the frontend directory:
-   ```bash
-   cd farmflow
-   ```
+✅ **Harvest & Delivery Tracker**  
+- Tracks harvests twice a week  
+- Records weight and produce per greenhouse  
+- Delivery calendar built in
 
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
+✅ **Task Manager**  
+- Assign and track daily tasks like seeding, watering, or spraying  
+- Status updates help managers stay on schedule
 
-3. Start the development server:
-   ```bash
-   npm start
-   ```
+🚧 **Coming Soon:**  
+- Inventory tracking (seeds, fertilizer, pesticides)  
+- Field module for non-greenhouse crops  
+- Kinyarwanda language toggle
 
-## Project Structure
+---
 
-```
-.
-├── django_back_end/     # Django backend
-│   ├── api_app/         # Main API application
-│   └── django_back_end/ # Project settings
-└── farmflow/           # React frontend
-    ├── app/            # Application components
-    ├── assets/         # Static assets
-    └── public/         # Public files
-```
+## 📸 Screenshots
 
-## API Endpoints
+Coming soon — adding demo link and visuals
 
-- `/greenhouses/` - Greenhouse management
-- `/tasks/` - Task management
-- `/stats/` - Statistics and analytics
-- `/api-token-auth/` - Authentication
+---
 
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+> Built for impact. Designed for simplicity. Focused on real problems.
