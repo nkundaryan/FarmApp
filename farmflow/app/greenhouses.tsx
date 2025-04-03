@@ -41,8 +41,8 @@ export default function GreenhousesScreen() {
       if (!response.ok) {
         throw new Error('Failed to fetch greenhouses');
       }
-      const data = await response.json();
-      setGreenhouses(data);
+        const data = await response.json();
+        setGreenhouses(data);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
