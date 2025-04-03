@@ -2,6 +2,9 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useAppDispatch, useAppSelector } from './store/hooks';
+import { fetchGreenhouses, setSelectedGreenhouse } from './store/slices/greenhouseSlice';
+import { RootState } from './store';
 
 const { width } = Dimensions.get('window');
 const PADDING = 12;
@@ -23,36 +26,22 @@ interface Greenhouse {
 
 export default function GreenhousesScreen() {
   const router = useRouter();
+  const dispatch = useAppDispatch();
+  const { greenhouses, loading, error } = useAppSelector((state: RootState) => state.greenhouse);
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [statusFilter, setStatusFilter] = useState<Status | 'all'>('all');
-  const [greenhouses, setGreenhouses] = useState<Greenhouse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchGreenhouses();
-  }, []);
-
-  const fetchGreenhouses = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('http://localhost:8000/api/greenhouses/');
-      if (!response.ok) {
-        throw new Error('Failed to fetch greenhouses');
-      }
-        const data = await response.json();
-        setGreenhouses(data);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-      console.error('Error fetching greenhouses:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    dispatch(fetchGreenhouses());
+  }, [dispatch]);
 
   const handleGreenhousePress = (id: number) => {
+    const selectedGreenhouse = greenhouses.find((g: Greenhouse) => g.id === id);
+    if (selectedGreenhouse) {
+      dispatch(setSelectedGreenhouse(selectedGreenhouse));
+    }
     router.push(`/greenhouse/${id}`);
   };
 
@@ -74,15 +63,15 @@ export default function GreenhousesScreen() {
     let filtered = greenhouses;
     
     if (statusFilter !== 'all') {
-      filtered = filtered.filter(g => g.status === statusFilter);
+      filtered = filtered.filter((g: Greenhouse) => g.status === statusFilter);
     }
     
     return filtered;
   }, [greenhouses, statusFilter]);
 
-  const activeCount = greenhouses.filter(g => g.status === 'active').length;
-  const maintenanceCount = greenhouses.filter(g => g.status === 'maintenance').length;
-  const inactiveCount = greenhouses.filter(g => g.status === 'inactive').length;
+  const activeCount = greenhouses.filter((g: Greenhouse) => g.status === 'active').length;
+  const maintenanceCount = greenhouses.filter((g: Greenhouse) => g.status === 'maintenance').length;
+  const inactiveCount = greenhouses.filter((g: Greenhouse) => g.status === 'inactive').length;
 
   const toggleViewMode = () => {
     setViewMode(viewMode === 'grid' ? 'list' : 'grid');
@@ -100,7 +89,7 @@ export default function GreenhousesScreen() {
     return (
       <View style={styles.container}>
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchGreenhouses}>
+        <TouchableOpacity style={styles.retryButton} onPress={() => dispatch(fetchGreenhouses())}>
           <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
       </View>
@@ -206,7 +195,7 @@ export default function GreenhousesScreen() {
       <ScrollView style={styles.scrollView}>
         {viewMode === 'grid' ? (
           <View style={styles.grid}>
-            {filteredGreenhouses.map((greenhouse) => (
+            {filteredGreenhouses.map((greenhouse: Greenhouse) => (
               <TouchableOpacity
                 key={greenhouse.id}
                 style={styles.tileContainer}
@@ -235,7 +224,7 @@ export default function GreenhousesScreen() {
           </View>
         ) : (
           <View style={styles.list}>
-            {filteredGreenhouses.map((greenhouse) => (
+            {filteredGreenhouses.map((greenhouse: Greenhouse) => (
               <TouchableOpacity
                 key={greenhouse.id}
                 style={styles.listItem}
