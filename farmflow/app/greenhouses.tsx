@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useState, useMemo, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
@@ -15,14 +15,10 @@ type Status = 'active' | 'maintenance' | 'inactive';
 interface Greenhouse {
   id: number;
   name: string;
-  crop: string;
+  size: number;
   status: Status;
-  maintenanceInfo?: string;
-  cropStage?: string;
-  harvestDate?: string;
-  maintenanceEndDate?: string;
-  inactiveReason?: string;
-  reactivationDate?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export default function GreenhousesScreen() {
@@ -30,49 +26,31 @@ export default function GreenhousesScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [statusFilter, setStatusFilter] = useState<Status | 'all'>('all');
+  const [greenhouses, setGreenhouses] = useState<Greenhouse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const greenhouses: Greenhouse[] = [
-    {
-      id: 1,
-      name: 'Greenhouse A',
-      crop: 'Tomatoes',
-      status: 'active',
-      cropStage: 'Flowering',
-      harvestDate: '2024-05-15',
-    },
-    {
-      id: 2,
-      name: 'Greenhouse B',
-      crop: 'Peppers',
-      status: 'maintenance',
-      maintenanceInfo: 'Replacing irrigation system',
-      maintenanceEndDate: '2024-04-10',
-    },
-    {
-      id: 3,
-      name: 'Greenhouse C',
-      crop: 'Cucumbers',
-      status: 'active',
-      cropStage: 'Fruiting',
-      harvestDate: '2024-04-28',
-    },
-    {
-      id: 4,
-      name: 'Greenhouse D',
-      crop: 'Lettuce',
-      status: 'maintenance',
-      maintenanceInfo: 'Annual cleaning',
-      maintenanceEndDate: '2024-04-05',
-    },
-    {
-      id: 5,
-      name: 'Greenhouse E',
-      crop: 'Herbs',
-      status: 'inactive',
-      inactiveReason: 'Seasonal closure',
-      reactivationDate: '2024-05-01',
+  useEffect(() => {
+    fetchGreenhouses();
+  }, []);
+
+  const fetchGreenhouses = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('http://localhost:8000/api/greenhouses/');
+      if (!response.ok) {
+        throw new Error('Failed to fetch greenhouses');
+      }
+      const data = await response.json();
+      setGreenhouses(data);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      console.error('Error fetching greenhouses:', err);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
   const handleGreenhousePress = (id: number) => {
     router.push(`/greenhouse/${id}`);
@@ -110,6 +88,25 @@ export default function GreenhousesScreen() {
     setViewMode(viewMode === 'grid' ? 'list' : 'grid');
   };
 
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#34495E" />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={fetchGreenhouses}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -124,6 +121,16 @@ export default function GreenhousesScreen() {
           >
             <MaterialIcons 
               name={viewMode === 'grid' ? 'view-list' : 'grid-view'} 
+              size={24} 
+              color="#34495E" 
+            />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.iconButton}
+            onPress={() => router.push('/greenhouse/new')}
+          >
+            <MaterialIcons 
+              name="add" 
               size={24} 
               color="#34495E" 
             />
@@ -218,59 +225,10 @@ export default function GreenhousesScreen() {
                     </View>
                   </View>
                   
-                  <View style={styles.cropInfo}>
-                    <MaterialIcons name="local-florist" size={20} color="#666" />
-                    <Text style={styles.cropText}>{greenhouse.crop}</Text>
+                  <View style={styles.sizeInfo}>
+                    <MaterialIcons name="straighten" size={20} color="#666" />
+                    <Text style={styles.sizeText}>{greenhouse.size} sq ft</Text>
                   </View>
-
-                  {greenhouse.status === 'active' && (
-                    <>
-                      <View style={styles.cropStage}>
-                        <MaterialIcons name="timeline" size={16} color="#666" />
-                        <Text style={styles.cropStageText}>{greenhouse.cropStage}</Text>
-                      </View>
-                      <View style={styles.harvestInfo}>
-                        <MaterialIcons name="event" size={16} color="#666" />
-                        <Text style={styles.harvestText}>
-                          Harvest: {new Date(greenhouse.harvestDate!).toLocaleDateString()}
-                        </Text>
-                      </View>
-                    </>
-                  )}
-
-                  {greenhouse.status === 'maintenance' && (
-                    <>
-                      <View style={styles.maintenanceInfo}>
-                        <MaterialIcons name="build" size={16} color="#FFA726" />
-                        <Text style={styles.maintenanceText}>
-                          {greenhouse.maintenanceInfo}
-                        </Text>
-                      </View>
-                      <View style={styles.maintenanceEndInfo}>
-                        <MaterialIcons name="schedule" size={16} color="#FFA726" />
-                        <Text style={styles.maintenanceEndText}>
-                          Expected completion: {new Date(greenhouse.maintenanceEndDate!).toLocaleDateString()}
-                        </Text>
-                      </View>
-                    </>
-                  )}
-
-                  {greenhouse.status === 'inactive' && (
-                    <>
-                      <View style={styles.inactiveInfo}>
-                        <MaterialIcons name="info" size={16} color="#FF5252" />
-                        <Text style={styles.inactiveReasonText}>
-                          {greenhouse.inactiveReason}
-                        </Text>
-                      </View>
-                      <View style={styles.reactivationInfo}>
-                        <MaterialIcons name="restart-alt" size={16} color="#FF5252" />
-                        <Text style={styles.reactivationText}>
-                          Reactivation: {new Date(greenhouse.reactivationDate!).toLocaleDateString()}
-                        </Text>
-                      </View>
-                    </>
-                  )}
                 </View>
               </TouchableOpacity>
             ))}
@@ -294,73 +252,15 @@ export default function GreenhousesScreen() {
                     </Text>
                   </View>
                 </View>
-                
-                <View style={styles.cropInfo}>
-                  <MaterialIcons name="local-florist" size={20} color="#666" />
-                  <Text style={styles.cropText}>{greenhouse.crop}</Text>
+                <View style={styles.sizeInfo}>
+                  <MaterialIcons name="straighten" size={20} color="#666" />
+                  <Text style={styles.sizeText}>{greenhouse.size} sq ft</Text>
                 </View>
-
-                {greenhouse.status === 'active' && (
-                  <>
-                    <View style={styles.cropStage}>
-                      <MaterialIcons name="timeline" size={16} color="#666" />
-                      <Text style={styles.cropStageText}>{greenhouse.cropStage}</Text>
-                    </View>
-                    <View style={styles.harvestInfo}>
-                      <MaterialIcons name="event" size={16} color="#666" />
-                      <Text style={styles.harvestText}>
-                        Harvest: {new Date(greenhouse.harvestDate!).toLocaleDateString()}
-                      </Text>
-                    </View>
-                  </>
-                )}
-
-                {greenhouse.status === 'maintenance' && (
-                  <>
-                    <View style={styles.maintenanceInfo}>
-                      <MaterialIcons name="build" size={16} color="#FFA726" />
-                      <Text style={styles.maintenanceText}>
-                        {greenhouse.maintenanceInfo}
-                      </Text>
-                    </View>
-                    <View style={styles.maintenanceEndInfo}>
-                      <MaterialIcons name="schedule" size={16} color="#FFA726" />
-                      <Text style={styles.maintenanceEndText}>
-                        Expected completion: {new Date(greenhouse.maintenanceEndDate!).toLocaleDateString()}
-                      </Text>
-                    </View>
-                  </>
-                )}
-
-                {greenhouse.status === 'inactive' && (
-                  <>
-                    <View style={styles.inactiveInfo}>
-                      <MaterialIcons name="info" size={16} color="#FF5252" />
-                      <Text style={styles.inactiveReasonText}>
-                        {greenhouse.inactiveReason}
-                      </Text>
-                    </View>
-                    <View style={styles.reactivationInfo}>
-                      <MaterialIcons name="restart-alt" size={16} color="#FF5252" />
-                      <Text style={styles.reactivationText}>
-                        Reactivation: {new Date(greenhouse.reactivationDate!).toLocaleDateString()}
-                      </Text>
-                    </View>
-                  </>
-                )}
               </TouchableOpacity>
             ))}
           </View>
         )}
       </ScrollView>
-
-      <TouchableOpacity 
-        style={styles.addButton}
-        onPress={() => router.push('/greenhouse/new')}
-      >
-        <MaterialIcons name="add" size={24} color="#FFFFFF" />
-        <Text style={styles.addButtonText}>Add New Greenhouse</Text>
-      </TouchableOpacity>
     </View>
   );
 }
@@ -487,29 +387,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
   },
-  cropInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 8,
-  },
-  cropText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  maintenanceInfo: {
+  sizeInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 8,
-    padding: 8,
-    backgroundColor: '#FFF3E0',
-    borderRadius: 8,
     gap: 8,
   },
-  maintenanceText: {
-    fontSize: 12,
-    color: '#F57C00',
-    flex: 1,
+  sizeText: {
+    fontSize: 14,
+    color: '#666',
   },
   list: {
     padding: PADDING,
@@ -539,78 +425,21 @@ const styles = StyleSheet.create({
     color: '#2C3E50',
     flex: 1,
   },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#34495E',
-    margin: PADDING,
-    padding: 16,
-    borderRadius: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+  errorText: {
+    color: '#E74C3C',
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 16,
   },
-  addButtonText: {
+  retryButton: {
+    backgroundColor: '#34495E',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  retryButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '500',
-    marginLeft: 8,
-  },
-  cropStage: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-    gap: 8,
-  },
-  cropStageText: {
-    fontSize: 12,
-    color: '#666',
-  },
-  harvestInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    gap: 8,
-  },
-  harvestText: {
-    fontSize: 12,
-    color: '#666',
-  },
-  maintenanceEndInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    gap: 8,
-  },
-  maintenanceEndText: {
-    fontSize: 12,
-    color: '#F57C00',
-  },
-  inactiveInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-    padding: 8,
-    backgroundColor: '#FFEBEE',
-    borderRadius: 8,
-    gap: 8,
-  },
-  inactiveReasonText: {
-    fontSize: 12,
-    color: '#FF5252',
-    flex: 1,
-  },
-  reactivationInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    gap: 8,
-  },
-  reactivationText: {
-    fontSize: 12,
-    color: '#FF5252',
+    fontWeight: '600',
   },
 });

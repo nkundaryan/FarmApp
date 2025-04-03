@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Greenhouse
+from .models import User, Greenhouse, GrowingCycle, WeeklyHarvest, MaintenanceActivity
 
 class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -14,4 +14,5 @@ class UserSerializer(serializers.ModelSerializer):
 class GreenhouseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Greenhouse
-        fields = ('id', 'name', 'size', 'created_at', 'updated_at')
+        fields = ('id', 'name', 'size', 'status', 'created_at', 'updated_at')
+        read_only_fields = ('created_at', 'updated_at')
