@@ -6,7 +6,7 @@ from rest_framework.authtoken.views import obtain_auth_token
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('api_app.urls')),  # Include the API app URLs
+    path('api/', include('api_app.urls')),  # Include the API app URLs with /api/ prefix
     path('api-token-auth/', obtain_auth_token, name='api_token_auth'),  # Add token authentication URL
 ]
 

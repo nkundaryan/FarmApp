@@ -1,90 +1,51 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet, Text } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { StyleSheet } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
+import { Appbar } from 'react-native-paper';
 
 export const NavigationBar = () => {
   const router = useRouter();
   const pathname = usePathname();
 
-  const isActive = (path: string) => pathname === path;
+  const isActive = (path: string) => pathname === '/' + path;
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity
-        style={[styles.navItem, isActive('/dashboard') && styles.activeItem]}
+    <Appbar.Header style={styles.header}>
+      <Appbar.Content title="FarmFlow" />
+      <Appbar.Action 
+        icon="view-dashboard" 
         onPress={() => router.push('/dashboard')}
-      >
-        <MaterialIcons
-          name="dashboard"
-          size={24}
-          color={isActive('/dashboard') ? '#2ECC71' : '#95A5A6'}
-        />
-        <Text style={[styles.label, isActive('/dashboard') && styles.activeLabel]}>Overview</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[styles.navItem, isActive('/greenhouses') && styles.activeItem]}
+        color={isActive('dashboard') ? '#2ECC71' : '#95A5A6'}
+      />
+      <Appbar.Action 
+        icon="sprout" 
         onPress={() => router.push('/greenhouses')}
-      >
-        <MaterialIcons
-          name="local-florist"
-          size={24}
-          color={isActive('/greenhouses') ? '#2ECC71' : '#95A5A6'}
-        />
-        <Text style={[styles.label, isActive('/greenhouses') && styles.activeLabel]}>Greenhouses</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[styles.navItem, isActive('/reports') && styles.activeItem]}
+        color={isActive('greenhouses') ? '#2ECC71' : '#95A5A6'}
+      />
+      <Appbar.Action 
+        icon="package-variant" 
+        onPress={() => router.push('/inventory')}
+        color={isActive('inventory') ? '#2ECC71' : '#95A5A6'}
+      />
+      <Appbar.Action 
+        icon="chart-bar" 
         onPress={() => router.push('/reports')}
-      >
-        <MaterialIcons
-          name="assessment"
-          size={24}
-          color={isActive('/reports') ? '#2ECC71' : '#95A5A6'}
-        />
-        <Text style={[styles.label, isActive('/reports') && styles.activeLabel]}>Reports</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[styles.navItem, isActive('/finance') && styles.activeItem]}
+        color={isActive('reports') ? '#2ECC71' : '#95A5A6'}
+      />
+      <Appbar.Action 
+        icon="bank" 
         onPress={() => router.push('/finance')}
-      >
-        <MaterialIcons
-          name="account-balance"
-          size={24}
-          color={isActive('/finance') ? '#2ECC71' : '#95A5A6'}
-        />
-        <Text style={[styles.label, isActive('/finance') && styles.activeLabel]}>Finance</Text>
-      </TouchableOpacity>
-    </View>
+        color={isActive('finance') ? '#2ECC71' : '#95A5A6'}
+      />
+    </Appbar.Header>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
+  header: {
     backgroundColor: '#FFFFFF',
+    elevation: 0,
     borderBottomWidth: 1,
     borderBottomColor: '#ECF0F1',
-    paddingVertical: 12,
-  },
-  navItem: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  activeItem: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#2ECC71',
-  },
-  label: {
-    fontSize: 12,
-    color: '#95A5A6',
-    marginTop: 4,
-  },
-  activeLabel: {
-    color: '#2ECC71',
   },
 }); 
