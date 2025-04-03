@@ -4,40 +4,40 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 type MaterialIconName = keyof typeof MaterialIcons.glyphMap;
 
-interface ReportItem {
+interface FinanceItem {
   title: string;
   icon: MaterialIconName;
 }
 
-interface ReportSection {
+interface FinanceSection {
   title: string;
-  items: ReportItem[];
+  items: FinanceItem[];
 }
 
-export default function ReportsScreen() {
-  const reportSections: ReportSection[] = [
+export default function FinanceScreen() {
+  const financeSections: FinanceSection[] = [
     {
-      title: 'Weekly Reports',
+      title: 'Financial Overview',
       items: [
-        { title: 'Harvest Report', icon: 'eco' },
-        { title: 'Performance Ranking', icon: 'leaderboard' },
-        { title: 'Plant Development', icon: 'trending-up' },
+        { title: 'Income Tracking', icon: 'account-balance' },
+        { title: 'Expense Management', icon: 'receipt' },
+        { title: 'Profit Analysis', icon: 'trending-up' },
       ],
     },
     {
-      title: 'Scouting Reports',
+      title: 'Seasonal Reports',
       items: [
-        { title: 'Pest & Disease', icon: 'bug-report' },
-        { title: 'Plant Health', icon: 'health-and-safety' },
-        { title: 'Environmental Data', icon: 'thermostat' },
+        { title: 'Season Performance', icon: 'calendar-today' },
+        { title: 'Target vs Actual', icon: 'assessment' },
+        { title: 'Historical Data', icon: 'history' },
       ],
     },
     {
-      title: 'Chemical & Fertilizer',
+      title: 'Budget Management',
       items: [
-        { title: 'Usage Reports', icon: 'science' },
-        { title: 'Application History', icon: 'history' },
-        { title: 'Inventory Status', icon: 'inventory' },
+        { title: 'Budget Planning', icon: 'account-balance' },
+        { title: 'Cost Analysis', icon: 'analytics' },
+        { title: 'Forecasting', icon: 'timeline' },
       ],
     },
   ];
@@ -45,17 +45,17 @@ export default function ReportsScreen() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <MaterialIcons name="assessment" size={32} color="#2ECC71" />
-        <Text style={styles.title}>Reports</Text>
+        <MaterialIcons name="account-balance" size={32} color="#2ECC71" />
+        <Text style={styles.title}>Finance</Text>
       </View>
 
-      {reportSections.map((section, index) => (
+      {financeSections.map((section, index) => (
         <View key={index} style={styles.section}>
           <Text style={styles.sectionTitle}>{section.title}</Text>
           {section.items.map((item, itemIndex) => (
-            <TouchableOpacity key={itemIndex} style={styles.reportItem}>
+            <TouchableOpacity key={itemIndex} style={styles.financeItem}>
               <MaterialIcons name={item.icon} size={24} color="#2ECC71" />
-              <Text style={styles.reportTitle}>{item.title}</Text>
+              <Text style={styles.financeTitle}>{item.title}</Text>
               <MaterialIcons name="chevron-right" size={24} color="#95A5A6" />
             </TouchableOpacity>
           ))}
@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
     color: '#2C3E50',
     marginBottom: 12,
   },
-  reportItem: {
+  financeItem: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
-  reportTitle: {
+  financeTitle: {
     flex: 1,
     fontSize: 16,
     color: '#2C3E50',

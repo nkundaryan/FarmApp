@@ -1,348 +1,506 @@
-import React, { useEffect, useState } from 'react';
-import Navbar from './components/Navbar';
+import React, { useState, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, TextInput } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { GreenhouseTile } from './components/GreenhouseTile';
 
-interface Greenhouse {
-  id: number;
-  name: string;
-  size: number;
-}
+const { width } = Dimensions.get('window');
+const PADDING = 12;
+const GAP = 12;
+// Calculate tile width for 3 columns with padding and gaps
+const TILE_WIDTH = (width - (2 * PADDING) - (2 * GAP)) / 3;
 
-const styles = {
-  pageContainer: {
-    minHeight: "100vh",
-    backgroundColor: "#ffffff",
-  },
-  contentContainer: {
-    padding: "20px",
-    maxWidth: "1200px",
-    margin: "0 auto",
-  },
-  header: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "30px",
-  },
-  title: {
-    fontSize: "24px",
-    fontWeight: "bold",
-    color: "#333333",
-  },
-  addButton: {
-    backgroundColor: "#507D2A",
-    color: "#ffffff",
-    border: "none",
-    borderRadius: "6px",
-    padding: "10px 20px",
-    cursor: "pointer",
-    fontSize: "16px",
-    fontWeight: "bold",
-  },
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
-    gap: "20px",
-  },
-  card: {
-    backgroundColor: "#f5f5f5",
-    borderRadius: "8px",
-    padding: "20px",
-    cursor: "pointer",
-    transition: "transform 0.2s",
-    '&:hover': {
-      transform: "scale(1.02)",
-    },
-  },
-  cardTitle: {
-    fontSize: "18px",
-    fontWeight: "bold",
-    color: "#333333",
-    marginBottom: "10px",
-  },
-  cardInfo: {
-    fontSize: "14px",
-    color: "#666666",
-  },
-  noGreenhouses: {
-    textAlign: "center" as const,
-    color: "#666666",
-    marginTop: "50px",
-    fontSize: "18px",
-  },
-  // Modal styles
-  modalOverlay: {
-    position: 'fixed' as const,
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  modalContent: {
-    backgroundColor: '#ffffff',
-    padding: '30px',
-    borderRadius: '8px',
-    width: '100%',
-    maxWidth: '500px',
-    position: 'relative' as const,
-  },
-  modalTitle: {
-    fontSize: '20px',
-    fontWeight: 'bold',
-    marginBottom: '20px',
-    color: '#333333',
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '15px',
-  },
-  formGroup: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '5px',
-  },
-  label: {
-    fontSize: '14px',
-    color: '#666666',
-  },
-  input: {
-    padding: '8px 12px',
-    borderRadius: '4px',
-    border: '1px solid #ddd',
-    fontSize: '14px',
-  },
-  buttonGroup: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    gap: '10px',
-    marginTop: '20px',
-  },
-  cancelButton: {
-    padding: '8px 16px',
-    borderRadius: '4px',
-    border: '1px solid #ddd',
-    backgroundColor: '#ffffff',
-    color: '#666666',
-    cursor: 'pointer',
-    fontSize: '14px',
-  },
-  submitButton: {
-    padding: '8px 16px',
-    borderRadius: '4px',
-    border: 'none',
-    backgroundColor: '#507D2A',
-    color: '#ffffff',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: 'bold',
-  },
-  errorText: {
-    color: '#dc3545',
-    fontSize: '14px',
-    marginTop: '5px',
-  },
-};
+type ViewMode = 'grid' | 'list';
 
 export default function GreenhousesScreen() {
-  const [greenhouses, setGreenhouses] = useState<Greenhouse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    size: '',
-  });
-  const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'maintenance' | 'inactive'>('all');
 
-  const fetchGreenhouses = async () => {
-    try {
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        window.location.href = '/';
-        return;
-      }
+  const greenhouses = [
+    {
+      id: 1,
+      name: 'Tomatoes',
+      size: '1000 sq ft',
+      temperature: 24,
+      humidity: 65,
+      status: 'active' as const,
+    },
+    {
+      id: 2,
+      name: 'Peppers',
+      size: '800 sq ft',
+      temperature: 22,
+      humidity: 70,
+      status: 'active' as const,
+    },
+    {
+      id: 3,
+      name: 'Cucumbers',
+      size: '1200 sq ft',
+      temperature: 25,
+      humidity: 68,
+      status: 'maintenance' as const,
+    },
+    {
+      id: 4,
+      name: 'Lettuce',
+      size: '900 sq ft',
+      temperature: 23,
+      humidity: 72,
+      status: 'active' as const,
+    },
+    {
+      id: 5,
+      name: 'Herbs',
+      size: '1100 sq ft',
+      temperature: 21,
+      humidity: 75,
+      status: 'inactive' as const,
+    },
+    {
+      id: 6,
+      name: 'Strawberries',
+      size: '950 sq ft',
+      temperature: 23,
+      humidity: 70,
+      status: 'active' as const,
+    },
+    {
+      id: 7,
+      name: 'Flowers',
+      size: '850 sq ft',
+      temperature: 22,
+      humidity: 68,
+      status: 'maintenance' as const,
+    },
+    {
+      id: 8,
+      name: 'Seedlings',
+      size: '600 sq ft',
+      temperature: 24,
+      humidity: 71,
+      status: 'active' as const,
+    },
+    {
+      id: 9,
+      name: 'Research',
+      size: '750 sq ft',
+      temperature: 23,
+      humidity: 69,
+      status: 'active' as const,
+    },
+  ];
 
-      const response = await fetch('http://localhost:8000/greenhouses/', {
-        headers: {
-          'Authorization': `Token ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setGreenhouses(data);
-      } else {
-        console.error('Failed to fetch greenhouses');
-      }
-    } catch (error) {
-      console.error('Error fetching greenhouses:', error);
-    } finally {
-      setLoading(false);
-    }
+  const handleGreenhousePress = (id: number) => {
+    router.push(`/greenhouse/${id}`);
   };
-
-  useEffect(() => {
-    fetchGreenhouses();
-  }, []);
 
   const handleAddGreenhouse = () => {
-    setShowModal(true);
+    router.push('/greenhouse/new');
   };
 
-  const handleCloseModal = () => {
-    setShowModal(false);
-    setFormData({ name: '', size: '' });
-    setError(null);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setIsSubmitting(true);
-
-    try {
-      // Validate form data
-      if (!formData.name.trim()) {
-        setError('Name is required');
-        return;
-      }
-      if (!formData.size.trim() || isNaN(Number(formData.size)) || Number(formData.size) <= 0) {
-        setError('Size must be a positive number');
-        return;
-      }
-
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        window.location.href = '/';
-        return;
-      }
-
-      const response = await fetch('http://localhost:8000/greenhouses/', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Token ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: formData.name.trim(),
-          size: Number(formData.size),
-        }),
-      });
-
-      if (response.ok) {
-        const newGreenhouse = await response.json();
-        setGreenhouses([...greenhouses, newGreenhouse]);
-        handleCloseModal();
-      } else {
-        const errorData = await response.json();
-        setError(errorData.message || 'Failed to create greenhouse');
-      }
-    } catch (error) {
-      console.error('Error creating greenhouse:', error);
-      setError('Failed to create greenhouse. Please try again.');
-    } finally {
-      setIsSubmitting(false);
+  // Filter greenhouses
+  const filteredGreenhouses = useMemo(() => {
+    // First filter by search query
+    let filtered = greenhouses.filter(g => 
+      g.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    
+    // Then filter by status if not 'all'
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(g => g.status === statusFilter);
     }
-  };
+    
+    return filtered;
+  }, [greenhouses, searchQuery, statusFilter]);
 
-  const handleGreenhouseClick = (id: number) => {
-    window.location.href = `/greenhouse/${id}`;
+  const activeCount = greenhouses.filter(g => g.status === 'active').length;
+  const maintenanceCount = greenhouses.filter(g => g.status === 'maintenance').length;
+  const inactiveCount = greenhouses.filter(g => g.status === 'inactive').length;
+
+  const toggleViewMode = () => {
+    setViewMode(viewMode === 'grid' ? 'list' : 'grid');
   };
 
   return (
-    <div style={styles.pageContainer}>
-      <Navbar />
-      <div style={styles.contentContainer}>
-        <div style={styles.header}>
-          <h1 style={styles.title}>Greenhouses</h1>
-          <button 
-            style={styles.addButton}
-            onClick={handleAddGreenhouse}
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.titleContainer}>
+          <MaterialIcons name="local-florist" size={32} color="#34495E" />
+          <Text style={styles.title}>Greenhouses</Text>
+        </View>
+        <View style={styles.headerActions}>
+          <TouchableOpacity 
+            style={styles.iconButton}
+            onPress={toggleViewMode}
           >
-            Add Greenhouse
-          </button>
-        </div>
+            <MaterialIcons 
+              name={viewMode === 'grid' ? 'view-list' : 'grid-view'} 
+              size={24} 
+              color="#34495E" 
+            />
+          </TouchableOpacity>
+        </View>
+      </View>
 
-        {loading ? (
-          <div style={styles.noGreenhouses}>Loading...</div>
-        ) : greenhouses.length > 0 ? (
-          <div style={styles.grid}>
-            {greenhouses.map((greenhouse) => (
-              <div
-                key={greenhouse.id}
-                style={styles.card}
-                onClick={() => handleGreenhouseClick(greenhouse.id)}
-              >
-                <div style={styles.cardTitle}>{greenhouse.name}</div>
-                <div style={styles.cardInfo}>
-                  Size: {greenhouse.size} square meters
-                </div>
-              </div>
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <MaterialIcons name="search" size={20} color="#7F8C8D" />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search greenhouses..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholderTextColor="#95A5A6"
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <MaterialIcons name="close" size={20} color="#7F8C8D" />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Status Filter Tiles */}
+      <View style={styles.statsContainer}>
+        <TouchableOpacity 
+          style={[
+            styles.statItem, 
+            { backgroundColor: statusFilter === 'active' ? '#34495E' : '#F8F9FA' }
+          ]}
+          onPress={() => setStatusFilter('active')}
+        >
+          <Text style={[
+            styles.statValue, 
+            { color: statusFilter === 'active' ? '#FFFFFF' : '#2C3E50' }
+          ]}>{activeCount}</Text>
+          <Text style={[
+            styles.statLabel, 
+            { color: statusFilter === 'active' ? '#E0E0E0' : '#7F8C8D' }
+          ]}>Active</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[
+            styles.statItem, 
+            { backgroundColor: statusFilter === 'maintenance' ? '#7F8C8D' : '#F8F9FA' }
+          ]}
+          onPress={() => setStatusFilter('maintenance')}
+        >
+          <Text style={[
+            styles.statValue, 
+            { color: statusFilter === 'maintenance' ? '#FFFFFF' : '#2C3E50' }
+          ]}>{maintenanceCount}</Text>
+          <Text style={[
+            styles.statLabel, 
+            { color: statusFilter === 'maintenance' ? '#E0E0E0' : '#7F8C8D' }
+          ]}>Maintenance</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[
+            styles.statItem, 
+            { backgroundColor: statusFilter === 'inactive' ? '#BDC3C7' : '#F8F9FA' }
+          ]}
+          onPress={() => setStatusFilter('inactive')}
+        >
+          <Text style={[
+            styles.statValue, 
+            { color: statusFilter === 'inactive' ? '#FFFFFF' : '#2C3E50' }
+          ]}>{inactiveCount}</Text>
+          <Text style={[
+            styles.statLabel, 
+            { color: statusFilter === 'inactive' ? '#E0E0E0' : '#7F8C8D' }
+          ]}>Inactive</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* View All Button */}
+      {statusFilter !== 'all' && (
+        <TouchableOpacity 
+          style={styles.viewAllButton}
+          onPress={() => setStatusFilter('all')}
+        >
+          <MaterialIcons name="clear-all" size={16} color="#34495E" />
+          <Text style={styles.viewAllText}>View All</Text>
+        </TouchableOpacity>
+      )}
+
+      <ScrollView style={styles.scrollView}>
+        {filteredGreenhouses.length === 0 ? (
+          <View style={styles.emptyState}>
+            <MaterialIcons name="search-off" size={48} color="#BDC3C7" />
+            <Text style={styles.emptyStateText}>No greenhouses found</Text>
+            <Text style={styles.emptyStateSubtext}>
+              Try adjusting your search or filters
+            </Text>
+          </View>
+        ) : viewMode === 'grid' ? (
+          <View style={styles.grid}>
+            {filteredGreenhouses.map((greenhouse) => (
+              <View key={greenhouse.id} style={styles.tileContainer}>
+                <GreenhouseTile
+                  name={greenhouse.name}
+                  size={greenhouse.size}
+                  temperature={greenhouse.temperature}
+                  humidity={greenhouse.humidity}
+                  status={greenhouse.status}
+                  onPress={() => handleGreenhousePress(greenhouse.id)}
+                />
+              </View>
             ))}
-          </div>
+          </View>
         ) : (
-          <div style={styles.noGreenhouses}>
-            No greenhouses found. Click "Add Greenhouse" to create one.
-          </div>
+          <View style={styles.list}>
+            {filteredGreenhouses.map((greenhouse) => (
+              <TouchableOpacity 
+                key={greenhouse.id} 
+                style={styles.listItem}
+                onPress={() => handleGreenhousePress(greenhouse.id)}
+              >
+                <View style={styles.listItemHeader}>
+                  <View style={styles.listItemTitle}>
+                    <MaterialIcons name="local-florist" size={20} color="#34495E" />
+                    <Text style={styles.listItemName}>{greenhouse.name}</Text>
+                  </View>
+                  <View style={[
+                    styles.statusBadge, 
+                    { backgroundColor: greenhouse.status === 'active' ? '#34495E' : 
+                                      greenhouse.status === 'maintenance' ? '#7F8C8D' : '#BDC3C7' }
+                  ]}>
+                    <Text style={styles.statusText}>
+                      {greenhouse.status.charAt(0).toUpperCase() + greenhouse.status.slice(1)}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.listItemDetails}>
+                  <View style={styles.listItemDetail}>
+                    <MaterialIcons name="straighten" size={16} color="#7F8C8D" />
+                    <Text style={styles.listItemDetailText}>{greenhouse.size}</Text>
+                  </View>
+                  <View style={styles.listItemDetail}>
+                    <MaterialIcons name="thermostat" size={16} color="#7F8C8D" />
+                    <Text style={styles.listItemDetailText}>{greenhouse.temperature}°C</Text>
+                  </View>
+                  <View style={styles.listItemDetail}>
+                    <MaterialIcons name="water-drop" size={16} color="#7F8C8D" />
+                    <Text style={styles.listItemDetailText}>{greenhouse.humidity}%</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
         )}
+      </ScrollView>
 
-        {/* Add Greenhouse Modal */}
-        {showModal && (
-          <div style={styles.modalOverlay}>
-            <div style={styles.modalContent}>
-              <h2 style={styles.modalTitle}>Add New Greenhouse</h2>
-              <form style={styles.form} onSubmit={handleSubmit}>
-                <div style={styles.formGroup}>
-                  <label style={styles.label} htmlFor="name">Name</label>
-                  <input
-                    id="name"
-                    type="text"
-                    style={styles.input}
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Enter greenhouse name"
-                  />
-                </div>
-                <div style={styles.formGroup}>
-                  <label style={styles.label} htmlFor="size">Size (square meters)</label>
-                  <input
-                    id="size"
-                    type="number"
-                    style={styles.input}
-                    value={formData.size}
-                    onChange={(e) => setFormData({ ...formData, size: e.target.value })}
-                    placeholder="Enter size"
-                    min="1"
-                  />
-                </div>
-                {error && <div style={styles.errorText}>{error}</div>}
-                <div style={styles.buttonGroup}>
-                  <button
-                    type="button"
-                    style={styles.cancelButton}
-                    onClick={handleCloseModal}
-                    disabled={isSubmitting}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    style={styles.submitButton}
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? 'Creating...' : 'Create Greenhouse'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+      <TouchableOpacity 
+        style={styles.addButton}
+        onPress={handleAddGreenhouse}
+      >
+        <MaterialIcons name="add" size={24} color="#FFFFFF" />
+        <Text style={styles.addButtonText}>Add New Greenhouse</Text>
+      </TouchableOpacity>
+    </View>
   );
-} 
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: PADDING,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#ECF0F1',
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#2C3E50',
+    marginLeft: 12,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  iconButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#F8F9FA',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    margin: PADDING,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ECF0F1',
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 16,
+    color: '#2C3E50',
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    padding: PADDING,
+    gap: GAP,
+  },
+  statItem: {
+    flex: 1,
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#ECF0F1',
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#2C3E50',
+  },
+  statLabel: {
+    fontSize: 14,
+    color: '#7F8C8D',
+    marginTop: 4,
+  },
+  viewAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    marginRight: PADDING,
+    marginBottom: PADDING,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#F8F9FA',
+    borderWidth: 1,
+    borderColor: '#ECF0F1',
+  },
+  viewAllText: {
+    fontSize: 14,
+    color: '#34495E',
+    marginLeft: 4,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  grid: {
+    padding: PADDING,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: GAP,
+    justifyContent: 'flex-start',
+  },
+  tileContainer: {
+    width: TILE_WIDTH,
+  },
+  list: {
+    padding: PADDING,
+    gap: GAP,
+  },
+  listItem: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#ECF0F1',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+  },
+  listItemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  listItemTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  listItemName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2C3E50',
+  },
+  listItemDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  listItemDetail: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  listItemDetailText: {
+    fontSize: 14,
+    color: '#34495E',
+  },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+  },
+  emptyStateText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2C3E50',
+    marginTop: 16,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: '#7F8C8D',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#34495E',
+    margin: PADDING,
+    padding: 16,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+  },
+  addButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '500',
+    marginLeft: 8,
+  },
+}); 

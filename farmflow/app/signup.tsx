@@ -12,7 +12,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
     padding: 20,
   },
-  loginContainer: {
+  signupContainer: {
     width: "100%",
     maxWidth: 400,
     alignItems: "center",
@@ -72,6 +72,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderRadius: 8,
+    marginBottom: 15,
   },
   submitButtonText: {
     color: "white",
@@ -81,77 +82,82 @@ const styles = StyleSheet.create({
   submitButtonDisabled: {
     backgroundColor: "#88AA6F",
   },
-  signupLink: {
-    width: "100%",
-    height: 50,
-    backgroundColor: "#507D2A",
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 8,
-    marginTop: 10,
+  loginLink: {
+    marginTop: 20,
   },
-  signupLinkText: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
+  loginLinkText: {
+    color: "#507D2A",
+    fontSize: 16,
+  }
 });
 
-export default function SignIn() {
+export default function SignUp() {
   const router = useRouter();
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSignIn = async () => {
+  const handleSignUp = async () => {
     try {
-      if (!username.trim() || !password.trim()) {
-        setError("Please enter username and password.");
+      // Basic validation
+      if (!username.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
+        setError("All fields are required.");
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        setError("Passwords do not match.");
         return;
       }
 
       setIsLoading(true);
       setError("");
 
-      const loginData = {
-        username: username.trim(),
-        password: password.trim()
-      };
-
-      console.log('Sending login request:', {
-        url: `${API_URL}/api-token-auth/`,
+      // First, create the user
+      const signupResponse = await fetch(`${API_URL}/api/users/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        data: loginData
+        body: JSON.stringify({
+          username: username.trim(),
+          email: email.trim(),
+          password: password.trim(),
+        }),
       });
 
-      const response = await fetch(`${API_URL}/api-token-auth/`, {
+      const signupData = await signupResponse.json();
+
+      if (!signupResponse.ok) {
+        throw new Error(signupData.detail || "Failed to create account");
+      }
+
+      // If signup successful, automatically log in
+      const loginResponse = await fetch(`${API_URL}/api-token-auth/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(loginData),
+        body: JSON.stringify({
+          username: username.trim(),
+          password: password.trim(),
+        }),
       });
 
-      const data = await response.json();
-      console.log('Server response:', {
-        status: response.status,
-        statusText: response.statusText,
-        data: data
-      });
+      const loginData = await loginResponse.json();
 
-      if (response.ok && data.token) {
-        await AsyncStorage.setItem('auth_token', data.token);
+      if (loginResponse.ok && loginData.token) {
+        await AsyncStorage.setItem('auth_token', loginData.token);
         router.push("/dashboard");
       } else {
-        setError(data.non_field_errors?.[0] || data.detail || "Invalid credentials");
+        throw new Error("Account created but failed to log in");
       }
-    } catch (error) {
-      console.error('Login error:', error);
-      setError("Failed to connect to the server. Please try again.");
+    } catch (error: any) {
+      console.error('Signup error:', error);
+      setError(error.message || "Failed to create account. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -159,11 +165,11 @@ export default function SignIn() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.loginContainer}>
+      <View style={styles.signupContainer}>
         <Text style={styles.appTitle}>FarmFlow</Text>
         
         <View style={styles.formContainer}>
-          <Text style={styles.formTitle}>Sign In</Text>
+          <Text style={styles.formTitle}>Create Account</Text>
           
           {error ? <Text style={styles.errorMessage}>{error}</Text> : null}
           
@@ -181,9 +187,33 @@ export default function SignIn() {
           <View style={styles.inputGroup}>
             <TextInput
               style={styles.inputField}
+              placeholder="Email"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <TextInput
+              style={styles.inputField}
               placeholder="Password"
               value={password}
               onChangeText={setPassword}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <TextInput
+              style={styles.inputField}
+              placeholder="Confirm Password"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
               secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
@@ -195,26 +225,24 @@ export default function SignIn() {
               styles.submitButton,
               isLoading && styles.submitButtonDisabled
             ]}
-            onPress={handleSignIn}
+            onPress={handleSignUp}
             disabled={isLoading}
-            accessibilityRole="button"
-            accessibilityLabel="Sign In"
           >
             <Text style={styles.submitButtonText}>
-              {isLoading ? "Signing In..." : "Sign In"}
+              {isLoading ? "Creating Account..." : "Create Account"}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={styles.signupLink}
-            onPress={() => router.push("/signup")}
+            style={styles.loginLink}
+            onPress={() => router.push("/")}
           >
-            <Text style={styles.signupLinkText}>
-              Don't have an account? Sign Up
+            <Text style={styles.loginLinkText}>
+              Already have an account? Sign In
             </Text>
           </TouchableOpacity>
         </View>
       </View>
     </SafeAreaView>
   );
-}
+} 

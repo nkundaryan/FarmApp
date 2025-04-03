@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import Navbar from './components/Navbar';
+import { View, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { StatsCard } from './components/dashboard/StatsCard';
+import { GreenhouseCard } from './components/dashboard/GreenhouseCard';
+import { TaskCard } from './components/dashboard/TaskCard';
+import { SectionHeader } from './components/dashboard/SectionHeader';
 
 interface Task {
   id: number;
@@ -22,146 +26,6 @@ interface Stats {
   tasks_in_progress: number;
 }
 
-const styles = {
-  pageContainer: {
-    minHeight: "100vh",
-    backgroundColor: "#ffffff",
-  },
-  contentContainer: {
-    padding: "20px",
-    maxWidth: "1200px",
-    margin: "0 auto",
-  },
-  header: {
-    marginBottom: "30px",
-  },
-  title: {
-    fontSize: "24px",
-    fontWeight: "bold",
-    color: "#333333",
-  },
-  statsGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-    gap: "20px",
-    marginBottom: "40px",
-  },
-  statCard: {
-    backgroundColor: "#f5f5f5",
-    borderRadius: "8px",
-    padding: "20px",
-    textAlign: "center" as const,
-  },
-  statNumber: {
-    fontSize: "32px",
-    fontWeight: "bold",
-    color: "#507D2A",
-    marginBottom: "8px",
-  },
-  statLabel: {
-    fontSize: "14px",
-    color: "#666666",
-  },
-  section: {
-    marginBottom: "40px",
-  },
-  sectionHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "20px",
-  },
-  sectionTitle: {
-    fontSize: "18px",
-    fontWeight: "bold",
-    color: "#333333",
-  },
-  viewAllButton: {
-    backgroundColor: "transparent",
-    color: "#507D2A",
-    border: "none",
-    fontSize: "14px",
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    gap: "5px",
-  },
-  greenhousesGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))",
-    gap: "20px",
-  },
-  greenhouseCard: {
-    backgroundColor: "#f5f5f5",
-    borderRadius: "8px",
-    padding: "20px",
-    cursor: "pointer",
-    transition: "transform 0.2s",
-    '&:hover': {
-      transform: "scale(1.02)",
-    },
-  },
-  greenhouseTitle: {
-    fontSize: "16px",
-    fontWeight: "bold",
-    color: "#333333",
-    marginBottom: "8px",
-  },
-  greenhouseInfo: {
-    fontSize: "14px",
-    color: "#666666",
-  },
-  tasksList: {
-    display: "flex",
-    flexDirection: "column" as const,
-    gap: "10px",
-  },
-  taskCard: {
-    backgroundColor: "#f5f5f5",
-    borderRadius: "8px",
-    padding: "15px",
-    cursor: "pointer",
-    transition: "transform 0.2s",
-    '&:hover': {
-      transform: "scale(1.01)",
-    },
-  },
-  taskHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    marginBottom: "8px",
-  },
-  taskTitle: {
-    fontSize: "16px",
-    fontWeight: "500",
-    color: "#333333",
-  },
-  taskMeta: {
-    display: "flex",
-    justifyContent: "space-between",
-    fontSize: "14px",
-    color: "#666666",
-  },
-  statusBadge: {
-    padding: "4px 8px",
-    borderRadius: "4px",
-    fontSize: "12px",
-    fontWeight: "500",
-  },
-  statusPending: {
-    backgroundColor: "#FFF3CD",
-    color: "#856404",
-  },
-  statusInProgress: {
-    backgroundColor: "#CCE5FF",
-    color: "#004085",
-  },
-  statusCompleted: {
-    backgroundColor: "#D4EDDA",
-    color: "#155724",
-  },
-};
-
 export default function DashboardScreen() {
   const [stats, setStats] = useState<Stats>({
     total_greenhouses: 0,
@@ -176,47 +40,22 @@ export default function DashboardScreen() {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const token = localStorage.getItem('auth_token');
-        if (!token) {
-          window.location.href = '/';
-          return;
-        }
-
-        // Fetch stats
-        const statsResponse = await fetch('http://localhost:8000/api/stats/', {
-          headers: {
-            'Authorization': `Token ${token}`,
-          },
+        // Simulated data for now
+        setStats({
+          total_greenhouses: 5,
+          total_tasks: 12,
+          tasks_completed: 8,
+          tasks_in_progress: 4,
         });
-
-        // Fetch recent greenhouses (limit to 4)
-        const greenhousesResponse = await fetch('http://localhost:8000/api/greenhouses/?limit=4', {
-          headers: {
-            'Authorization': `Token ${token}`,
-          },
-        });
-
-        // Fetch urgent tasks (limit to 5)
-        const tasksResponse = await fetch('http://localhost:8000/api/tasks/?urgent=true&limit=5', {
-          headers: {
-            'Authorization': `Token ${token}`,
-          },
-        });
-
-        if (statsResponse.ok) {
-          const statsData = await statsResponse.json();
-          setStats(statsData);
-        }
-
-        if (greenhousesResponse.ok) {
-          const greenhousesData = await greenhousesResponse.json();
-          setRecentGreenhouses(greenhousesData);
-        }
-
-        if (tasksResponse.ok) {
-          const tasksData = await tasksResponse.json();
-          setUrgentTasks(tasksData);
-        }
+        setRecentGreenhouses([
+          { id: 1, name: 'Main Greenhouse', size: 1000 },
+          { id: 2, name: 'Herb Garden', size: 500 },
+          { id: 3, name: 'Seedling Room', size: 300 },
+        ]);
+        setUrgentTasks([
+          { id: 1, title: 'Water plants', status: 'pending', due_date: '2024-04-03', greenhouse_name: 'Main Greenhouse' },
+          { id: 2, title: 'Check temperature', status: 'in_progress', due_date: '2024-04-03', greenhouse_name: 'Herb Garden' },
+        ]);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
@@ -234,132 +73,78 @@ export default function DashboardScreen() {
     });
   };
 
-  const getStatusStyle = (status: Task['status']) => {
-    switch (status) {
-      case 'pending':
-        return styles.statusPending;
-      case 'in_progress':
-        return styles.statusInProgress;
-      case 'completed':
-        return styles.statusCompleted;
-      default:
-        return {};
-    }
-  };
-
-  const navigateToGreenhouse = (id: number) => {
-    window.location.href = `/greenhouse/${id}`;
-  };
-
-  const navigateToTask = (id: number) => {
-    window.location.href = `/task/${id}`;
-  };
-
   if (loading) {
     return (
-      <div style={styles.pageContainer}>
-        <Navbar />
-        <div style={styles.contentContainer}>
-          <div style={styles.header}>
-            <h1 style={styles.title}>Loading...</h1>
-          </div>
-        </div>
-      </div>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#2ECC71" />
+      </View>
     );
   }
 
   return (
-    <div style={styles.pageContainer}>
-      <Navbar />
-      <div style={styles.contentContainer}>
-        <div style={styles.header}>
-          <h1 style={styles.title}>Dashboard</h1>
-        </div>
+    <ScrollView style={styles.container}>
+      <View style={styles.content}>
+        <View style={styles.statsGrid}>
+          <StatsCard value={stats.total_greenhouses} label="Total Greenhouses" color="#2ECC71" />
+          <StatsCard value={stats.total_tasks} label="Total Tasks" color="#3498DB" />
+          <StatsCard value={stats.tasks_completed} label="Completed Tasks" color="#2ECC71" />
+          <StatsCard value={stats.tasks_in_progress} label="In Progress" color="#F1C40F" />
+        </View>
 
-        {/* Stats Overview */}
-        <div style={styles.statsGrid}>
-          <div style={styles.statCard}>
-            <div style={styles.statNumber}>{stats.total_greenhouses}</div>
-            <div style={styles.statLabel}>Total Greenhouses</div>
-          </div>
-          <div style={styles.statCard}>
-            <div style={styles.statNumber}>{stats.total_tasks}</div>
-            <div style={styles.statLabel}>Total Tasks</div>
-          </div>
-          <div style={styles.statCard}>
-            <div style={styles.statNumber}>{stats.tasks_in_progress}</div>
-            <div style={styles.statLabel}>Tasks In Progress</div>
-          </div>
-          <div style={styles.statCard}>
-            <div style={styles.statNumber}>{stats.tasks_completed}</div>
-            <div style={styles.statLabel}>Tasks Completed</div>
-          </div>
-        </div>
+        <SectionHeader title="Recent Greenhouses" onViewAll={() => {}} />
+        <View style={styles.greenhousesGrid}>
+          {recentGreenhouses.map((greenhouse) => (
+            <GreenhouseCard
+              key={greenhouse.id}
+              name={greenhouse.name}
+              size={greenhouse.size}
+              onPress={() => {}}
+            />
+          ))}
+        </View>
 
-        {/* Recent Greenhouses */}
-        <div style={styles.section}>
-          <div style={styles.sectionHeader}>
-            <h2 style={styles.sectionTitle}>Recent Greenhouses</h2>
-            <button 
-              style={styles.viewAllButton}
-              onClick={() => window.location.href = '/greenhouses'}
-            >
-              View All →
-            </button>
-          </div>
-          <div style={styles.greenhousesGrid}>
-            {recentGreenhouses.map((greenhouse) => (
-              <div
-                key={greenhouse.id}
-                style={styles.greenhouseCard}
-                onClick={() => navigateToGreenhouse(greenhouse.id)}
-              >
-                <div style={styles.greenhouseTitle}>{greenhouse.name}</div>
-                <div style={styles.greenhouseInfo}>
-                  Size: {greenhouse.size} square meters
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Urgent Tasks */}
-        <div style={styles.section}>
-          <div style={styles.sectionHeader}>
-            <h2 style={styles.sectionTitle}>Urgent Tasks</h2>
-            <button 
-              style={styles.viewAllButton}
-              onClick={() => window.location.href = '/tasks'}
-            >
-              View All →
-            </button>
-          </div>
-          <div style={styles.tasksList}>
-            {urgentTasks.map((task) => (
-              <div
-                key={task.id}
-                style={styles.taskCard}
-                onClick={() => navigateToTask(task.id)}
-              >
-                <div style={styles.taskHeader}>
-                  <div style={styles.taskTitle}>{task.title}</div>
-                  <div style={{
-                    ...styles.statusBadge,
-                    ...getStatusStyle(task.status)
-                  }}>
-                    {task.status.replace('_', ' ').toUpperCase()}
-                  </div>
-                </div>
-                <div style={styles.taskMeta}>
-                  <span>{task.greenhouse_name}</span>
-                  <span>Due: {formatDate(task.due_date)}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
+        <SectionHeader title="Urgent Tasks" onViewAll={() => {}} />
+        <View style={styles.tasksList}>
+          {urgentTasks.map((task) => (
+            <TaskCard
+              key={task.id}
+              title={task.title}
+              status={task.status}
+              dueDate={formatDate(task.due_date)}
+              onPress={() => {}}
+            />
+          ))}
+        </View>
+      </View>
+    </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F5F6FA',
+  },
+  content: {
+    padding: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F5F6FA',
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginHorizontal: -8,
+    marginBottom: 24,
+  },
+  greenhousesGrid: {
+    marginBottom: 24,
+  },
+  tasksList: {
+    marginBottom: 24,
+  },
+});
 

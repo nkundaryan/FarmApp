@@ -1,31 +1,29 @@
 import React from 'react';
 import { Stack } from 'expo-router';
-import { View } from 'react-native';
-import { GreenhouseProvider } from './context';
+import { View, StyleSheet } from 'react-native';
+import { NavigationBar } from './components/NavigationBar';
 
 export default function Layout() {
   return (
-    <GreenhouseProvider>
-      <Stack>
-        <Stack.Screen 
-          name="index" 
-          options={{ 
-            headerShown: false 
-          }} 
-        />
-        <Stack.Screen 
-          name="greenhouse" 
-          options={{ 
-            headerShown: false 
-          }} 
-        />
-        <Stack.Screen 
-          name="greenhouse/new" 
-          options={{ 
-            headerShown: false 
-          }} 
-        />
+    <View style={styles.container}>
+      <NavigationBar />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+        }}
+      >
+        <Stack.Screen name="dashboard" />
+        <Stack.Screen name="greenhouses" />
+        <Stack.Screen name="reports" />
+        <Stack.Screen name="finance" />
       </Stack>
-    </GreenhouseProvider>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F5F6FA',
+  },
+});
