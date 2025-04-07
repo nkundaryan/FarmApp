@@ -81,20 +81,6 @@ const styles = StyleSheet.create({
   submitButtonDisabled: {
     backgroundColor: "#88AA6F",
   },
-  signupLink: {
-    width: "100%",
-    height: 50,
-    backgroundColor: "#507D2A",
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 8,
-    marginTop: 10,
-  },
-  signupLinkText: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
 });
 
 export default function SignIn() {
@@ -202,15 +188,6 @@ export default function SignIn() {
           >
             <Text style={styles.submitButtonText}>
               {isLoading ? "Signing In..." : "Sign In"}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.signupLink}
-            onPress={() => router.push("/signup")}
-          >
-            <Text style={styles.signupLinkText}>
-              Don't have an account? Sign Up
             </Text>
           </TouchableOpacity>
         </View>

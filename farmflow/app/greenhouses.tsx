@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator, Modal } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAppDispatch, useAppSelector } from './store/hooks';
-import { fetchGreenhouses, setSelectedGreenhouse } from './store/slices/greenhouseSlice';
+import { fetchGreenhouses, setSelectedGreenhouse, updateGreenhouseStatus } from './store/slices/greenhouseSlice';
 import { RootState } from './store';
 
 const { width } = Dimensions.get('window');
@@ -22,6 +22,13 @@ interface Greenhouse {
   status: Status;
   created_at: string;
   updated_at: string;
+  current_cycle?: {
+    crop_name: string;
+    seed_type: string;
+    planting_date: string;
+    expected_harvest_date: string;
+    status: string;
+  };
 }
 
 export default function GreenhousesScreen() {
@@ -32,6 +39,13 @@ export default function GreenhousesScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [statusFilter, setStatusFilter] = useState<Status | 'all'>('all');
+  const [selectedGreenhouse, setSelectedGreenhouseForStatus] = useState<Greenhouse | null>(null);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newGreenhouse, setNewGreenhouse] = useState({
+    name: '',
+    size: '',
+  });
 
   useEffect(() => {
     dispatch(fetchGreenhouses());
@@ -77,6 +91,60 @@ export default function GreenhousesScreen() {
     setViewMode(viewMode === 'grid' ? 'list' : 'grid');
   };
 
+  const handleStatusChange = async (newStatus: Status) => {
+    if (selectedGreenhouse) {
+      try {
+        await dispatch(updateGreenhouseStatus({ 
+          id: selectedGreenhouse.id, 
+          status: newStatus 
+        })).unwrap();
+        setShowStatusModal(false);
+        setSelectedGreenhouseForStatus(null);
+      } catch (error) {
+        console.error('Failed to update status:', error);
+      }
+    }
+  };
+
+  const StatusModal = () => (
+    <Modal
+      visible={showStatusModal}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={() => setShowStatusModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <Text style={styles.modalTitle}>Change Status</Text>
+          <TouchableOpacity 
+            style={[styles.statusOption, { backgroundColor: '#4CAF50' }]}
+            onPress={() => handleStatusChange('active')}
+          >
+            <Text style={styles.statusOptionText}>Set as Active</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.statusOption, { backgroundColor: '#FFA726' }]}
+            onPress={() => handleStatusChange('maintenance')}
+          >
+            <Text style={styles.statusOptionText}>Set as Maintenance</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.statusOption, { backgroundColor: '#FF5252' }]}
+            onPress={() => handleStatusChange('inactive')}
+          >
+            <Text style={styles.statusOptionText}>Set as Inactive</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.cancelButton}
+            onPress={() => setShowStatusModal(false)}
+          >
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -95,6 +163,50 @@ export default function GreenhousesScreen() {
       </View>
     );
   }
+
+  const renderGreenhouseItem = (item: Greenhouse) => {
+    return (
+      <TouchableOpacity
+        style={styles.greenhouseItem}
+        onPress={() => router.push(`/greenhouse/${item.id}`)}
+      >
+        <View style={styles.greenhouseHeader}>
+          <Text style={styles.greenhouseName}>{item.name}</Text>
+          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
+            <Text style={styles.statusText}>{item.status}</Text>
+          </View>
+        </View>
+        <View style={styles.greenhouseInfo}>
+          <View style={styles.infoRow}>
+            <MaterialIcons name="straighten" size={20} color="#666" />
+            <Text style={styles.infoText}>Size: {item.size} sq ft</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <MaterialIcons name="update" size={20} color="#7F8C8D" />
+            <Text style={styles.infoText}>
+              Last Updated: {new Date(item.updated_at).toLocaleDateString()}
+            </Text>
+          </View>
+          {item.status === 'active' && item.current_cycle && (
+            <>
+              <View style={styles.infoRow}>
+                <MaterialIcons name="eco" size={20} color="#4CAF50" />
+                <Text style={styles.infoText}>
+                  Growing: {item.current_cycle.crop_name} ({item.current_cycle.seed_type})
+                </Text>
+              </View>
+              <View style={styles.infoRow}>
+                <MaterialIcons name="event" size={20} color="#4CAF50" />
+                <Text style={styles.infoText}>
+                  Harvest: {new Date(item.current_cycle.expected_harvest_date).toLocaleDateString()}
+                </Text>
+              </View>
+            </>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -195,61 +307,16 @@ export default function GreenhousesScreen() {
       <ScrollView style={styles.scrollView}>
         {viewMode === 'grid' ? (
           <View style={styles.grid}>
-            {filteredGreenhouses.map((greenhouse: Greenhouse) => (
-              <TouchableOpacity
-                key={greenhouse.id}
-                style={styles.tileContainer}
-                onPress={() => handleGreenhousePress(greenhouse.id)}
-              >
-                <View style={styles.tile}>
-                  <View style={styles.tileHeader}>
-                    <Text style={styles.tileName}>{greenhouse.name}</Text>
-                    <View style={[
-                      styles.statusBadge,
-                      { backgroundColor: getStatusColor(greenhouse.status) }
-                    ]}>
-                      <Text style={styles.statusText}>
-                        {greenhouse.status}
-                      </Text>
-                    </View>
-                  </View>
-                  
-                  <View style={styles.sizeInfo}>
-                    <MaterialIcons name="straighten" size={20} color="#666" />
-                    <Text style={styles.sizeText}>{greenhouse.size} sq ft</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
+            {filteredGreenhouses.map(renderGreenhouseItem)}
           </View>
         ) : (
           <View style={styles.list}>
-            {filteredGreenhouses.map((greenhouse: Greenhouse) => (
-              <TouchableOpacity
-                key={greenhouse.id}
-                style={styles.listItem}
-                onPress={() => handleGreenhousePress(greenhouse.id)}
-              >
-                <View style={styles.listItemHeader}>
-                  <Text style={styles.listItemName}>{greenhouse.name}</Text>
-                  <View style={[
-                    styles.statusBadge,
-                    { backgroundColor: getStatusColor(greenhouse.status) }
-                  ]}>
-                    <Text style={styles.statusText}>
-                      {greenhouse.status}
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.sizeInfo}>
-                  <MaterialIcons name="straighten" size={20} color="#666" />
-                  <Text style={styles.sizeText}>{greenhouse.size} sq ft</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+            {filteredGreenhouses.map(renderGreenhouseItem)}
           </View>
         )}
       </ScrollView>
+
+      <StatusModal />
     </View>
   );
 }
@@ -402,17 +469,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 2,
   },
-  listItemHeader: {
+  listItemContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
-  },
-  listItemName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2C3E50',
-    flex: 1,
   },
   errorText: {
     color: '#E74C3C',
@@ -430,5 +490,85 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
+    width: '80%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  statusOption: {
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  statusOptionText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  cancelButton: {
+    marginTop: 10,
+    padding: 15,
+    borderRadius: 8,
+    backgroundColor: '#E0E0E0',
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: '#333',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  greenhouseItem: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#ECF0F1',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    marginBottom: 12,
+  },
+  greenhouseHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  greenhouseName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2C3E50',
+    flex: 1,
+  },
+  greenhouseInfo: {
+    gap: 8,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#666',
+    flex: 1,
   },
 });

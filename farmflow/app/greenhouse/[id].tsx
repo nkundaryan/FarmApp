@@ -1,15 +1,27 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, TextInput } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { updateGreenhouseStatus } from '../store/slices/greenhouseSlice';
+import DateTimePicker from '@react-native-community/datetimepicker';
+
+type Status = 'active' | 'maintenance' | 'inactive';
 
 interface Greenhouse {
   id: number;
   name: string;
-  size: number;
-  status: 'active' | 'maintenance' | 'inactive';
+  size: string;
+  status: Status;
   created_at: string;
   updated_at: string;
+  currentCrop?: {
+    type: string;
+    variety: string;
+    plantingDate: string;
+    expectedHarvestDate: string;
+    areaUsed: string;
+  };
 }
 
 interface GrowingCycle {
@@ -34,14 +46,34 @@ interface MaintenanceActivity {
   notes: string | null;
 }
 
+interface CropDetails {
+  crop_name: string;
+  seed_type: string;
+  planting_date: Date;
+  expected_harvest_date: Date;
+  area_used: string;
+}
+
 export default function GreenhouseDetail() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
+  const dispatch = useAppDispatch();
+  
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [greenhouse, setGreenhouse] = useState<Greenhouse | null>(null);
   const [currentCycle, setCurrentCycle] = useState<GrowingCycle | null>(null);
   const [maintenanceActivities, setMaintenanceActivities] = useState<MaintenanceActivity[]>([]);
+  const [cropDetails, setCropDetails] = useState<CropDetails>({
+    crop_name: '',
+    seed_type: '',
+    planting_date: new Date(),
+    expected_harvest_date: new Date(),
+    area_used: '',
+  });
+  const [showPlantingDatePicker, setShowPlantingDatePicker] = useState(false);
+  const [showHarvestDatePicker, setShowHarvestDatePicker] = useState(false);
+  const [showStatusModal, setShowStatusModal] = useState(false);
 
   useEffect(() => {
     fetchGreenhouseData();
@@ -103,6 +135,69 @@ export default function GreenhouseDetail() {
     }
   };
 
+  const handleStatusChange = async (newStatus: Status) => {
+    if (!greenhouse) return;
+
+    try {
+      const response = await fetch(`http://localhost:8000/api/greenhouses/${greenhouse.id}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update status');
+      }
+
+      const updatedGreenhouse = await response.json();
+      setGreenhouse(updatedGreenhouse);
+      setShowStatusModal(false);
+    } catch (error) {
+      console.error('Error updating status:', error);
+      Alert.alert('Error', 'Failed to update status. Please try again.');
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!greenhouse) return;
+
+    try {
+      // Format the data to match backend expectations
+      const formattedData = {
+        crop_name: cropDetails.crop_name,
+        seed_type: cropDetails.seed_type,
+        planting_date: cropDetails.planting_date.toISOString().split('T')[0],
+        expected_harvest_date: cropDetails.expected_harvest_date.toISOString().split('T')[0],
+        area_used: parseFloat(cropDetails.area_used)
+      };
+
+      // Start planting with crop details
+      const plantingResponse = await fetch(`http://127.0.0.1:8000/api/greenhouses/${greenhouse.id}/plant/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formattedData),
+      });
+
+      if (!plantingResponse.ok) {
+        const errorData = await plantingResponse.json();
+        throw new Error(errorData.error || 'Failed to start planting');
+      }
+
+      const updatedGreenhouse = await plantingResponse.json();
+      setGreenhouse(updatedGreenhouse);
+      Alert.alert('Success', 'Planting started successfully');
+      
+      // Refresh the greenhouse data to show the new status and crop
+    } catch (error) {
+      console.error('Error starting planting:', error);
+      Alert.alert('Error', 'Failed to start planting. Please try again.');
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -148,161 +243,168 @@ export default function GreenhouseDetail() {
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container}>
+      {/* Header Section */}
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <MaterialIcons name="arrow-back" size={24} color="#34495E" />
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <MaterialIcons name="arrow-back" size={24} color="#507D2A" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Greenhouse Details</Text>
+        <Text style={styles.title}>{greenhouse.name}</Text>
+        <View style={styles.statusContainer}>
+          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(greenhouse.status) }]}>
+            <Text style={styles.statusText}>{greenhouse.status.charAt(0).toUpperCase() + greenhouse.status.slice(1)}</Text>
+          </View>
+        </View>
       </View>
 
-      <ScrollView style={styles.content}>
-        {/* Main Status Card */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View style={styles.cardTitleContainer}>
-              <MaterialIcons name="local-florist" size={24} color="#34495E" />
-              <Text style={styles.cardTitle}>{greenhouse.name}</Text>
-            </View>
-            <View style={styles.cardActions}>
-              <View style={[styles.statusBadge, 
-                { backgroundColor: greenhouse.status === 'active' ? '#4CAF50' : 
-                                 greenhouse.status === 'maintenance' ? '#FFA726' : '#FF5252' }
-              ]}>
-                <Text style={styles.statusText}>
-                  {greenhouse.status.charAt(0).toUpperCase() + greenhouse.status.slice(1)}
-                </Text>
-              </View>
-              <TouchableOpacity 
-                style={[styles.deleteButton, { backgroundColor: '#FFE5E5' }]}
-                onPress={handleDelete}
-              >
-                <MaterialIcons name="delete" size={24} color="#E74C3C" />
-              </TouchableOpacity>
-            </View>
+      {/* Greenhouse Info */}
+      <View style={styles.infoSection}>
+        <Text style={styles.sectionTitle}>Greenhouse Information</Text>
+        <View style={styles.infoRow}>
+          <MaterialIcons name="straighten" size={20} color="#666" />
+          <Text style={styles.infoText}>Size: {greenhouse.size} sq ft</Text>
+        </View>
+        <View style={styles.infoRow}>
+          <MaterialIcons name="update" size={20} color="#7F8C8D" />
+          <Text style={styles.infoText}>
+            Last Updated: {new Date(greenhouse.updated_at).toLocaleDateString()}
+          </Text>
+        </View>
+      </View>
+
+      {/* Crop Form or Summary based on status */}
+      {greenhouse.status === 'inactive' ? (
+        <View style={styles.formSection}>
+          <Text style={styles.sectionTitle}>Plant New Crop</Text>
+          
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Crop Type</Text>
+            <TextInput
+              style={styles.input}
+              value={cropDetails.crop_name}
+              onChangeText={(text: string) => setCropDetails({ ...cropDetails, crop_name: text })}
+              placeholder="e.g., Tomatoes, Lettuce"
+            />
           </View>
-          <View style={styles.cardContent}>
-            <View style={styles.infoRow}>
-              <MaterialIcons name="straighten" size={20} color="#7F8C8D" />
-              <Text style={styles.infoText}>Size: {greenhouse.size} sq ft</Text>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Seed Variety</Text>
+            <TextInput
+              style={styles.input}
+              value={cropDetails.seed_type}
+              onChangeText={(text: string) => setCropDetails({ ...cropDetails, seed_type: text })}
+              placeholder="e.g., Beefsteak, Romaine"
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Planting Date</Text>
+            <TouchableOpacity 
+              style={styles.dateButton}
+              onPress={() => setShowPlantingDatePicker(true)}
+            >
+              <Text>{cropDetails.planting_date.toLocaleDateString()}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Expected Harvest Date</Text>
+            <TouchableOpacity 
+              style={styles.dateButton}
+              onPress={() => setShowHarvestDatePicker(true)}
+            >
+              <Text>{cropDetails.expected_harvest_date.toLocaleDateString()}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Area to be Used (sq ft)</Text>
+            <TextInput
+              style={styles.input}
+              value={cropDetails.area_used}
+              onChangeText={(text: string) => setCropDetails({ ...cropDetails, area_used: text })}
+              keyboardType="numeric"
+              placeholder="Enter area"
+            />
+          </View>
+
+          <TouchableOpacity 
+            style={styles.submitButton}
+            onPress={handleSubmit}
+          >
+            <Text style={styles.submitButtonText}>Start Planting</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={styles.summarySection}>
+          <Text style={styles.sectionTitle}>Current Crop</Text>
+          <View style={styles.summaryCard}>
+            <View style={styles.summaryRow}>
+              <MaterialIcons name="local-florist" size={20} color="#507D2A" />
+              <Text style={styles.summaryText}>Crop: {greenhouse.currentCrop?.type}</Text>
             </View>
-            <View style={styles.infoRow}>
-              <MaterialIcons name="update" size={20} color="#7F8C8D" />
-              <Text style={styles.infoText}>
-                Last Updated: {new Date(greenhouse.updated_at).toLocaleDateString()}
-              </Text>
+            <View style={styles.summaryRow}>
+              <MaterialIcons name="grass" size={20} color="#507D2A" />
+              <Text style={styles.summaryText}>Variety: {greenhouse.currentCrop?.variety}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <MaterialIcons name="event" size={20} color="#507D2A" />
+              <Text style={styles.summaryText}>Planted: {new Date(greenhouse.currentCrop?.plantingDate || '').toLocaleDateString()}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <MaterialIcons name="event-available" size={20} color="#507D2A" />
+              <Text style={styles.summaryText}>Harvest: {new Date(greenhouse.currentCrop?.expectedHarvestDate || '').toLocaleDateString()}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <MaterialIcons name="straighten" size={20} color="#507D2A" />
+              <Text style={styles.summaryText}>Area Used: {greenhouse.currentCrop?.areaUsed} sq ft</Text>
             </View>
           </View>
         </View>
+      )}
 
-        {/* Current Growing Cycle Card */}
-        {currentCycle && (
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <View style={styles.cardTitleContainer}>
-                <MaterialIcons name="eco" size={24} color="#34495E" />
-                <Text style={styles.cardTitle}>Current Crop</Text>
-              </View>
-            </View>
-            <View style={styles.cardContent}>
-              <View style={styles.infoRow}>
-                <MaterialIcons name="spa" size={20} color="#7F8C8D" />
-                <Text style={styles.infoText}>Crop: {currentCycle.crop_name}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <MaterialIcons name="grass" size={20} color="#7F8C8D" />
-                <Text style={styles.infoText}>Seed Type: {currentCycle.seed_type}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <MaterialIcons name="event" size={20} color="#7F8C8D" />
-                <Text style={styles.infoText}>
-                  Planted: {new Date(currentCycle.planting_date).toLocaleDateString()}
-                </Text>
-              </View>
-              <View style={styles.infoRow}>
-                <MaterialIcons name="event-available" size={20} color="#7F8C8D" />
-                <Text style={styles.infoText}>
-                  Expected Harvest: {new Date(currentCycle.expected_harvest_date).toLocaleDateString()}
-                </Text>
-              </View>
-              <View style={styles.statusRow}>
-                <MaterialIcons 
-                  name={currentCycle.status === 'growing' ? 'trending-up' : 
-                        currentCycle.status === 'harvesting' ? 'agriculture' : 'hourglass-empty'} 
-                  size={20} 
-                  color="#4CAF50" 
-                />
-                <Text style={[styles.statusText, { color: '#4CAF50' }]}>
-                  {currentCycle.status.charAt(0).toUpperCase() + currentCycle.status.slice(1)}
-                </Text>
-              </View>
-            </View>
-          </View>
-        )}
+      {/* Date Pickers */}
+      {showPlantingDatePicker && (
+        <DateTimePicker
+          value={cropDetails.planting_date}
+          mode="date"
+          onChange={(event, date) => {
+            setShowPlantingDatePicker(false);
+            if (date) {
+              setCropDetails({ ...cropDetails, planting_date: date });
+            }
+          }}
+        />
+      )}
 
-        {/* Maintenance Activities Card */}
-        {maintenanceActivities.length > 0 && (
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <View style={styles.cardTitleContainer}>
-                <MaterialIcons name="build" size={24} color="#34495E" />
-                <Text style={styles.cardTitle}>Maintenance Activities</Text>
-              </View>
-            </View>
-            <View style={styles.cardContent}>
-              {maintenanceActivities.slice(0, 3).map((activity) => (
-                <View key={activity.id} style={styles.activityItem}>
-                  <View style={styles.activityHeader}>
-                    <Text style={styles.activityTitle}>
-                      {activity.type.charAt(0).toUpperCase() + activity.type.slice(1)}
-                    </Text>
-                    <View style={[styles.activityStatus, {
-                      backgroundColor: activity.status === 'completed' ? '#4CAF50' :
-                                     activity.status === 'in_progress' ? '#FFA726' : '#FF5252'
-                    }]}>
-                      <Text style={styles.activityStatusText}>
-                        {activity.status.replace('_', ' ').charAt(0).toUpperCase() + 
-                         activity.status.slice(1).replace('_', ' ')}
-                      </Text>
-                    </View>
-                  </View>
-                  <Text style={styles.activityDescription}>{activity.description}</Text>
-                  <View style={styles.activityFooter}>
-                    <MaterialIcons name="event" size={16} color="#7F8C8D" />
-                    <Text style={styles.activityDate}>
-                      {new Date(activity.date).toLocaleDateString()}
-                    </Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* Quick Actions */}
-        <View style={styles.actionsContainer}>
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => router.push(`/greenhouse/${id}/maintenance/new`)}
-          >
-            <MaterialIcons name="build" size={24} color="#FFFFFF" />
-            <Text style={styles.actionButtonText}>New Maintenance</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => router.push(`/greenhouse/${id}/cycle/new`)}
-          >
-            <MaterialIcons name="eco" size={24} color="#FFFFFF" />
-            <Text style={styles.actionButtonText}>New Growing Cycle</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </View>
+      {showHarvestDatePicker && (
+        <DateTimePicker
+          value={cropDetails.expected_harvest_date}
+          mode="date"
+          onChange={(event, date) => {
+            setShowHarvestDatePicker(false);
+            if (date) {
+              setCropDetails({ ...cropDetails, expected_harvest_date: date });
+            }
+          }}
+        />
+      )}
+    </ScrollView>
   );
 }
+
+const getStatusColor = (status: Status) => {
+  switch (status) {
+    case 'active':
+      return '#4CAF50';
+    case 'maintenance':
+      return '#FFA726';
+    case 'inactive':
+      return '#FF5252';
+    default:
+      return '#757575';
+  }
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -489,5 +591,79 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '500',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#2C3E50',
+    flex: 1,
+  },
+  statusContainer: {
+    marginLeft: 16,
+  },
+  infoSection: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2C3E50',
+    marginBottom: 16,
+  },
+  formSection: {
+    padding: 16,
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 16,
+    color: '#2C3E50',
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+  },
+  dateButton: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    padding: 12,
+  },
+  submitButton: {
+    backgroundColor: '#507D2A',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  submitButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  summarySection: {
+    padding: 16,
+  },
+  summaryCard: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 12,
+    padding: 16,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  summaryText: {
+    fontSize: 16,
+    color: '#2C3E50',
+    marginLeft: 8,
   },
 }); 
