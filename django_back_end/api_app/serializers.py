@@ -1,5 +1,8 @@
 from rest_framework import serializers
+from django.contrib.auth import get_user_model
 from .models import User, Greenhouse, GrowingCycle, WeeklyHarvest, MaintenanceActivity
+
+User = get_user_model()
 
 class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -11,8 +14,23 @@ class UserSerializer(serializers.ModelSerializer):
             'password': {'write_only': True}
         }
 
+class GrowingCycleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GrowingCycle
+        fields = ('id', 'greenhouse', 'crop_name', 'seed_type', 'planting_date', 
+                 'expected_harvest_date', 'actual_harvest_date', 'status', 
+                 'termination_reason', 'termination_notes', 'notes')
+
 class GreenhouseSerializer(serializers.ModelSerializer):
+    current_cycle = serializers.SerializerMethodField()
+
     class Meta:
         model = Greenhouse
-        fields = ('id', 'name', 'size', 'status', 'created_at', 'updated_at')
+        fields = ('id', 'name', 'size', 'status', 'created_at', 'updated_at', 'current_cycle')
         read_only_fields = ('created_at', 'updated_at')
+
+    def get_current_cycle(self, obj):
+        active_cycle = obj.cycles.filter(status__in=['preparing', 'growing']).first()
+        if active_cycle:
+            return GrowingCycleSerializer(active_cycle).data
+        return None
