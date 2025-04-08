@@ -8,6 +8,7 @@
     "@gluestack-ui/themed": "^1.1.72",
     "@gluestack-ui/toast": "^1.0.9",
     "@react-native-community/datetimepicker": "^8.3.0",
+    "@react-native-picker/picker": "^2.11.0",
     "react-native-safe-area-context": "^5.3.0",
     "react-native-svg": "^15.11.2"
   },

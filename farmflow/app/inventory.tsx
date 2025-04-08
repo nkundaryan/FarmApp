@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
-import { Text, Card, Button, List, useTheme, FAB, TextInput, Portal, Modal, Divider } from 'react-native-paper';
+import { Text, Card, Button, List, useTheme, FAB, TextInput, Portal, Modal, Divider, Chip } from 'react-native-paper';
 import { MaterialIcons } from '@expo/vector-icons';
 
 interface InventoryItem {
@@ -22,6 +22,12 @@ interface InventoryUsage {
   usage_date: string;
 }
 
+interface Greenhouse {
+  id: number;
+  name: string;
+  status: string;
+}
+
 export default function InventoryScreen() {
   const theme = useTheme();
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
@@ -30,6 +36,8 @@ export default function InventoryScreen() {
   const [isUseModalVisible, setIsUseModalVisible] = useState(false);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [usageHistory, setUsageHistory] = useState<InventoryUsage[]>([]);
+  const [activeGreenhouses, setActiveGreenhouses] = useState<Greenhouse[]>([]);
+  const [selectedGreenhouseId, setSelectedGreenhouseId] = useState<number | null>(null);
   
   // Form states
   const [usageForm, setUsageForm] = useState({
@@ -53,6 +61,12 @@ export default function InventoryScreen() {
       fetchUsageHistory(selectedItem.id);
     }
   }, [selectedItem]);
+
+  useEffect(() => {
+    if (isUseModalVisible) {
+      fetchActiveGreenhouses();
+    }
+  }, [isUseModalVisible]);
 
   const fetchInventory = async () => {
     try {
@@ -79,6 +93,20 @@ export default function InventoryScreen() {
       setUsageHistory(data);
     } catch (error) {
       Alert.alert('Error', 'Failed to fetch usage history');
+    }
+  };
+
+  const fetchActiveGreenhouses = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/api/greenhouses/?status=active');
+      if (!response.ok) {
+        throw new Error('Failed to fetch active greenhouses');
+      }
+      const data = await response.json();
+      setActiveGreenhouses(data);
+    } catch (error) {
+      Alert.alert('Error', 'Could not load active greenhouses.');
+      setActiveGreenhouses([]);
     }
   };
 
@@ -131,7 +159,10 @@ export default function InventoryScreen() {
   };
 
   const handleUseItem = async () => {
-    if (!selectedItem) return;
+    if (!selectedItem || selectedGreenhouseId === null) {
+      Alert.alert('Error', 'Please select an active greenhouse.');
+      return;
+    }
     
     try {
       const quantity = parseFloat(usageForm.quantity_used);
@@ -151,6 +182,7 @@ export default function InventoryScreen() {
       }
 
       const formattedQuantity = quantity.toFixed(2);
+      const greenhouseIdToSend = selectedGreenhouseId;
 
       const response = await fetch(`http://localhost:8000/api/inventory/${selectedItem.id}/record_usage/`, {
         method: 'POST',
@@ -160,28 +192,21 @@ export default function InventoryScreen() {
         body: JSON.stringify({
           quantity_used: formattedQuantity,
           purpose_note: usageForm.purpose_note.trim(),
+          greenhouse_id: greenhouseIdToSend,
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
         console.log('Error response:', errorData);
-        if (errorData.details) {
-          const errorMessages = Object.entries(errorData.details)
-            .map(([field, errors]) => `${field}: ${Array.isArray(errors) ? errors.join(', ') : errors}`)
-            .join('\n');
-          Alert.alert('Validation Error', errorMessages);
-        } else {
-          Alert.alert('Error', errorData.error || 'Failed to record usage');
-        }
+        const errorMessage = errorData.error || (errorData.details ? JSON.stringify(errorData.details) : 'Failed to record usage');
+        Alert.alert('Error', errorMessage);
         return;
       }
 
       setIsUseModalVisible(false);
-      setUsageForm({
-        quantity_used: '',
-        purpose_note: '',
-      });
+      setUsageForm({ quantity_used: '', purpose_note: '' });
+      setSelectedGreenhouseId(null);
       fetchInventory();
       fetchUsageHistory(selectedItem.id);
     } catch (error: any) {
@@ -337,27 +362,57 @@ export default function InventoryScreen() {
       <Portal>
         <Modal
           visible={isUseModalVisible}
-          onDismiss={() => setIsUseModalVisible(false)}
+          onDismiss={() => {
+            setIsUseModalVisible(false);
+            setSelectedGreenhouseId(null);
+          }}
           contentContainerStyle={styles.modalContainer}
         >
           <Text variant="headlineSmall" style={styles.modalTitle}>
             Use {selectedItem?.name}
           </Text>
+
+          <View style={styles.pickerContainer}>
+            <Text style={styles.pickerLabel}>Select Greenhouse *</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.greenhouseScrollView}>
+              {activeGreenhouses.length === 0 ? (
+                <Text style={styles.noGreenhousesText}>No active greenhouses found.</Text>
+              ) : (
+                activeGreenhouses.map((gh) => (
+                  <Button
+                    key={gh.id}
+                    mode={selectedGreenhouseId === gh.id ? 'contained' : 'outlined'}
+                    onPress={() => setSelectedGreenhouseId(gh.id)}
+                    style={styles.greenhouseButton}
+                    compact
+                  >
+                    {gh.name}
+                  </Button>
+                ))
+              )}
+            </ScrollView>
+          </View>
+
           <TextInput
-            label="Quantity to Use"
+            label="Quantity to Use *"
             value={usageForm.quantity_used}
             onChangeText={text => setUsageForm({...usageForm, quantity_used: text})}
             keyboardType="numeric"
             style={styles.input}
           />
           <TextInput
-            label="Purpose"
+            label="Purpose *"
             value={usageForm.purpose_note}
             onChangeText={text => setUsageForm({...usageForm, purpose_note: text})}
             multiline
             style={styles.input}
           />
-          <Button mode="contained" onPress={handleUseItem} style={styles.modalButton}>
+          <Button 
+            mode="contained" 
+            onPress={handleUseItem} 
+            style={styles.modalButton}
+            disabled={!selectedGreenhouseId}
+           >
             Record Usage
           </Button>
         </Modal>
@@ -446,5 +501,26 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: '#2ECC71',
+  },
+  pickerContainer: {
+    marginBottom: 20,
+  },
+  pickerLabel: {
+    fontSize: 14,
+    color: '#333',
+    marginBottom: 8,
+    marginLeft: 4, 
+  },
+  greenhouseScrollView: {
+    maxHeight: 100,
+  },
+  greenhouseButton: {
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  noGreenhousesText: {
+    fontStyle: 'italic',
+    color: '#888',
+    padding: 10,
   },
 }); 

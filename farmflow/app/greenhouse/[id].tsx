@@ -5,8 +5,23 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { updateGreenhouseStatus } from '../store/slices/greenhouseSlice';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { Divider } from 'react-native-paper';
 
 type Status = 'active' | 'maintenance' | 'inactive';
+
+interface UsageInventoryItem {
+  id: number;
+  name: string;
+  unit: string;
+}
+
+interface InventoryUsageRecord {
+  id: number;
+  inventory_item: UsageInventoryItem;
+  quantity_used: string;
+  purpose_note: string;
+  usage_date: string;
+}
 
 interface Greenhouse {
   id: number;
@@ -74,6 +89,7 @@ export default function GreenhouseDetail() {
   const [showPlantingDatePicker, setShowPlantingDatePicker] = useState(false);
   const [showHarvestDatePicker, setShowHarvestDatePicker] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
+  const [inventoryUsage, setInventoryUsage] = useState<InventoryUsageRecord[]>([]);
 
   useEffect(() => {
     fetchGreenhouseData();
@@ -109,9 +125,23 @@ export default function GreenhouseDetail() {
         setMaintenanceActivities(maintenanceData);
       }
 
+      // Fetch Inventory Usage History for this greenhouse
+      const usageResponse = await fetch(`http://localhost:8000/api/inventory-usage/?greenhouse_id=${id}`);
+      if (usageResponse.ok) {
+        const usageData = await usageResponse.json();
+        setInventoryUsage(usageData);
+      } else {
+        console.warn('Could not fetch inventory usage history for this greenhouse.');
+        setInventoryUsage([]);
+      }
+
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       console.error('Error fetching greenhouse data:', err);
+      setGreenhouse(null);
+      setCurrentCycle(null);
+      setMaintenanceActivities([]);
+      setInventoryUsage([]);
     } finally {
       setLoading(false);
     }
@@ -360,6 +390,32 @@ export default function GreenhouseDetail() {
               <Text style={styles.summaryText}>Area Used: {greenhouse.currentCrop?.areaUsed} sq ft</Text>
             </View>
           </View>
+        </View>
+      )}
+
+      {/* Inventory Usage History Section (Conditionally Rendered) */}
+      {greenhouse && greenhouse.status === 'active' && (
+        <View style={styles.usageSection}>
+          <Text style={styles.sectionTitle}>Inventory Usage History</Text>
+          {inventoryUsage.length === 0 ? (
+            <Text style={styles.noUsageText}>No inventory usage recorded for this greenhouse yet.</Text>
+          ) : (
+            inventoryUsage.map((usage, index) => (
+              <View key={usage.id} style={styles.usageItem}>
+                <View style={styles.usageHeader}>
+                  <Text style={styles.usageItemName}>{usage.inventory_item.name}</Text>
+                  <Text style={styles.usageDate}>
+                    {new Date(usage.usage_date).toLocaleDateString()}
+                  </Text>
+                </View>
+                <Text style={styles.usageDetails}>
+                  Used: {usage.quantity_used} {usage.inventory_item.unit}
+                </Text>
+                <Text style={styles.usagePurpose}>Purpose: {usage.purpose_note}</Text>
+                {index < inventoryUsage.length - 1 && <Divider style={styles.usageDivider} />} 
+              </View>
+            ))
+          )}
         </View>
       )}
 
@@ -665,5 +721,49 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#2C3E50',
     marginLeft: 8,
+  },
+  usageSection: {
+    padding: 16,
+    marginTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+  },
+  noUsageText: {
+    fontSize: 14,
+    color: '#7F8C8D',
+    textAlign: 'center',
+    paddingVertical: 16,
+    fontStyle: 'italic',
+  },
+  usageItem: {
+    marginBottom: 12,
+    paddingBottom: 12,
+  },
+  usageHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  usageItemName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#34495E',
+  },
+  usageDate: {
+    fontSize: 12,
+    color: '#7F8C8D',
+  },
+  usageDetails: {
+    fontSize: 14,
+    color: '#2C3E50',
+    marginBottom: 4,
+  },
+  usagePurpose: {
+    fontSize: 14,
+    color: '#555',
+  },
+  usageDivider: {
+     marginTop: 12, 
   },
 }); 

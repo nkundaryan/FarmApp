@@ -21,12 +21,23 @@ class GrowingCycleSerializer(serializers.ModelSerializer):
                  'expected_harvest_date', 'actual_harvest_date', 'status', 
                  'termination_reason', 'termination_notes', 'notes')
 
+# Forward declaration for InventoryUsageSerializer if needed, or ensure definition order
+# class InventoryUsageSerializer(serializers.Serializer):
+#     pass 
+
 class GreenhouseSerializer(serializers.ModelSerializer):
     current_cycle = serializers.SerializerMethodField()
+    # Remove inventory_usages field
+    # inventory_usages = InventoryUsageSerializer(many=True, read_only=True)
 
     class Meta:
         model = Greenhouse
-        fields = ('id', 'name', 'size', 'status', 'created_at', 'updated_at', 'current_cycle')
+        # Remove inventory_usages from fields
+        fields = (
+            'id', 'name', 'size', 'status', 
+            'created_at', 'updated_at', 
+            'current_cycle' 
+        )
         read_only_fields = ('created_at', 'updated_at')
 
     def get_current_cycle(self, obj):
@@ -42,7 +53,28 @@ class InventoryItemSerializer(serializers.ModelSerializer):
         read_only_fields = ('created_at', 'updated_at')
 
 class InventoryUsageSerializer(serializers.ModelSerializer):
+    greenhouse_id = serializers.PrimaryKeyRelatedField(
+        queryset=Greenhouse.objects.all(), 
+        source='greenhouse', 
+        write_only=True, 
+        required=True, 
+        allow_null=False
+    )
+    greenhouse = GreenhouseSerializer(read_only=True)
+    # Add back the nested InventoryItemSerializer for read operations
+    inventory_item = InventoryItemSerializer(read_only=True) 
+
     class Meta:
         model = InventoryUsage
-        fields = ('id', 'inventory_item', 'quantity_used', 'purpose_note', 'usage_date', 'created_at')
-        read_only_fields = ('id', 'inventory_item', 'created_at', 'usage_date')
+        fields = (
+            'id', 
+            'inventory_item', # Include for reading nested data
+            'greenhouse_id', 
+            'greenhouse', 
+            'quantity_used', 
+            'purpose_note', 
+            'usage_date', 
+            'created_at'
+        )
+        # inventory_item is handled by its definition above
+        read_only_fields = ('id', 'greenhouse', 'inventory_item', 'created_at', 'usage_date')

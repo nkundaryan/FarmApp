@@ -139,10 +139,12 @@ class InventoryItem(models.Model):
 
 class InventoryUsage(models.Model):
     inventory_item = models.ForeignKey(InventoryItem, on_delete=models.CASCADE, related_name='usages')
+    greenhouse = models.ForeignKey(Greenhouse, on_delete=models.SET_NULL, null=True, blank=True, related_name='inventory_usages')
     quantity_used = models.DecimalField(max_digits=10, decimal_places=2)
     usage_date = models.DateTimeField(auto_now_add=True)
     purpose_note = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Used {self.quantity_used} {self.inventory_item.unit} of {self.inventory_item.name}"
+        location = f" in {self.greenhouse.name}" if self.greenhouse else ""
+        return f"Used {self.quantity_used} {self.inventory_item.unit} of {self.inventory_item.name}{location}"

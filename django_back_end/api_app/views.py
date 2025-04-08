@@ -119,7 +119,17 @@ class InventoryItemViewSet(viewsets.ModelViewSet):
         serializer = InventoryUsageSerializer(data=request.data)
         
         if serializer.is_valid():
-            # Update the inventory quantity
+            # Get the validated greenhouse object from the serializer
+            greenhouse = serializer.validated_data['greenhouse'] 
+
+            # Check if the greenhouse is active
+            if greenhouse.status != 'active':
+                return Response(
+                    {'error': f'Inventory can only be used in active greenhouses. {greenhouse.name} is currently {greenhouse.status}.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Check inventory quantity
             quantity_used = serializer.validated_data['quantity_used']
             if quantity_used > inventory_item.current_quantity:
                 return Response(
@@ -127,10 +137,12 @@ class InventoryItemViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
+            # Update inventory quantity
             inventory_item.current_quantity -= quantity_used
             inventory_item.save()
             
-            # Create the usage record
+            # Create the usage record, associating with the item and greenhouse
+            # The serializer already has greenhouse via validated_data
             serializer.save(inventory_item=inventory_item)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         
