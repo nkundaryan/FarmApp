@@ -9,8 +9,9 @@ import { RootState } from './store';
 const { width } = Dimensions.get('window');
 const PADDING = 12;
 const GAP = 12;
-// Calculate tile width for 3 columns with padding and gaps
-const TILE_WIDTH = (width - (2 * PADDING) - (2 * GAP)) / 3;
+// Calculate tile width for 4 columns with padding and gaps
+const NUM_COLUMNS = 4;
+const TILE_WIDTH = (width - (2 * PADDING) - ((NUM_COLUMNS - 1) * GAP)) / NUM_COLUMNS;
 
 type ViewMode = 'grid' | 'list';
 type Status = 'active' | 'maintenance' | 'inactive';
@@ -165,9 +166,14 @@ export default function GreenhousesScreen() {
   }
 
   const renderGreenhouseItem = (item: Greenhouse) => {
+    const itemStyle = viewMode === 'grid' 
+      ? [styles.greenhouseItemGrid, { width: TILE_WIDTH }] 
+      : styles.greenhouseItemList;
+
     return (
       <TouchableOpacity
-        style={styles.greenhouseItem}
+        key={item.id}
+        style={itemStyle}
         onPress={() => router.push(`/greenhouse/${item.id}`)}
       >
         <View style={styles.greenhouseHeader}>
@@ -307,11 +313,11 @@ export default function GreenhousesScreen() {
       <ScrollView style={styles.scrollView}>
         {viewMode === 'grid' ? (
           <View style={styles.grid}>
-            {filteredGreenhouses.map(renderGreenhouseItem)}
+            {filteredGreenhouses.map((item) => renderGreenhouseItem(item))}
           </View>
         ) : (
           <View style={styles.list}>
-            {filteredGreenhouses.map(renderGreenhouseItem)}
+            {filteredGreenhouses.map((item) => renderGreenhouseItem(item))}
           </View>
         )}
       </ScrollView>
@@ -404,7 +410,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: GAP,
-    justifyContent: 'flex-start',
+  },
+  list: {
+    padding: PADDING,
   },
   tileContainer: {
     width: TILE_WIDTH,
@@ -452,27 +460,6 @@ const styles = StyleSheet.create({
   sizeText: {
     fontSize: 14,
     color: '#666',
-  },
-  list: {
-    padding: PADDING,
-    gap: GAP,
-  },
-  listItem: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#ECF0F1',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-  },
-  listItemContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
   },
   errorText: {
     color: '#E74C3C',
@@ -533,7 +520,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  greenhouseItem: {
+  greenhouseItemGrid: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
@@ -544,7 +531,19 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
-    marginBottom: 12,
+  },
+  greenhouseItemList: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#ECF0F1',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    marginBottom: GAP,
   },
   greenhouseHeader: {
     flexDirection: 'row',

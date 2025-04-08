@@ -148,20 +148,34 @@ export default function GreenhouseDetail() {
   };
 
   const handleDelete = async () => {
-    console.log('Deleting greenhouse:', id);
+    console.log("[handleDelete] Function called.");
+    if (!greenhouse) {
+        console.log("[handleDelete] No greenhouse data found, exiting.");
+        return;
+    }
+    console.log(`[handleDelete] Attempting to delete greenhouse with id: ${id}`);
+    
     try {
+      console.log(`[handleDelete] Sending DELETE request to: http://localhost:8000/api/greenhouses/${id}/`);
       const response = await fetch(`http://localhost:8000/api/greenhouses/${id}/`, {
         method: 'DELETE'
       });
       
+      console.log(`[handleDelete] Response status: ${response.status}`);
       if (response.ok) {
-        console.log('Delete successful');
-        router.replace('/greenhouses');
+        console.log('[handleDelete] Delete successful via API.');
+        if (router.canGoBack()) {
+            router.back();
+        } else {
+            router.replace('/greenhouses'); 
+        }
       } else {
-        console.error('Delete failed:', response.status);
+        console.error('[handleDelete] Delete failed via API:', response.status);
+        Alert.alert('Delete Failed', 'Could not delete the greenhouse. Please try again.'); 
       }
     } catch (err) {
-      console.error('Delete error:', err);
+      console.error('[handleDelete] Error during fetch:', err);
+      Alert.alert('Delete Error', 'An unexpected error occurred during deletion.');
     }
   };
 
@@ -280,9 +294,14 @@ export default function GreenhouseDetail() {
           <MaterialIcons name="arrow-back" size={24} color="#507D2A" />
         </TouchableOpacity>
         <Text style={styles.title}>{greenhouse.name}</Text>
-        <View style={styles.statusContainer}>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(greenhouse.status) }]}>
-            <Text style={styles.statusText}>{greenhouse.status.charAt(0).toUpperCase() + greenhouse.status.slice(1)}</Text>
+        <View style={styles.headerActions}> 
+          <TouchableOpacity onPress={handleDelete} style={styles.deleteButton}> 
+            <MaterialIcons name="delete-outline" size={24} color="#E74C3C" /> 
+          </TouchableOpacity>
+          <View style={styles.statusContainer}> 
+            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(greenhouse.status) }]}>
+              <Text style={styles.statusText}>{greenhouse.status.charAt(0).toUpperCase() + greenhouse.status.slice(1)}</Text>
+            </View>
           </View>
         </View>
       </View>
@@ -498,7 +517,6 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#ECF0F1',
@@ -506,10 +524,10 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
+    marginRight: 8,
   },
   deleteButton: {
-    padding: 12,
-    borderRadius: 8,
+    padding: 8,
     marginLeft: 8,
   },
   headerTitle: {
@@ -518,6 +536,10 @@ const styles = StyleSheet.create({
     color: '#2C3E50',
     flex: 1,
     textAlign: 'center',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   content: {
     flex: 1,
@@ -653,9 +675,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#2C3E50',
     flex: 1,
+    textAlign: 'center',
   },
   statusContainer: {
-    marginLeft: 16,
+    marginLeft: 8,
   },
   infoSection: {
     padding: 16,
