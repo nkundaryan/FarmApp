@@ -2,8 +2,11 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action, api_view
 from django.contrib.auth import get_user_model
-from .models import Greenhouse, GrowingCycle
-from .serializers import UserSerializer, GreenhouseSerializer, GrowingCycleSerializer
+from .models import Greenhouse, GrowingCycle, InventoryItem, InventoryUsage
+from .serializers import (
+    UserSerializer, GreenhouseSerializer, GrowingCycleSerializer,
+    InventoryItemSerializer, InventoryUsageSerializer
+)
 from django.utils import timezone
 
 User = get_user_model()
@@ -104,3 +107,47 @@ def start_planting(request, greenhouse_id):
     response_data['current_cycle'] = GrowingCycleSerializer(growing_cycle).data
 
     return Response(response_data)
+
+class InventoryItemViewSet(viewsets.ModelViewSet):
+    queryset = InventoryItem.objects.all()
+    serializer_class = InventoryItemSerializer
+    permission_classes = [permissions.AllowAny]
+
+    @action(detail=True, methods=['post'])
+    def record_usage(self, request, pk=None):
+        inventory_item = self.get_object()
+        serializer = InventoryUsageSerializer(data=request.data)
+        
+        if serializer.is_valid():
+            # Update the inventory quantity
+            quantity_used = serializer.validated_data['quantity_used']
+            if quantity_used > inventory_item.current_quantity:
+                return Response(
+                    {'error': 'Not enough inventory available'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            inventory_item.current_quantity -= quantity_used
+            inventory_item.save()
+            
+            # Create the usage record
+            serializer.save(inventory_item=inventory_item)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
+        # Return the specific validation errors
+        return Response({
+            'error': 'Invalid data',
+            'details': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+class InventoryUsageViewSet(viewsets.ModelViewSet):
+    queryset = InventoryUsage.objects.all()
+    serializer_class = InventoryUsageSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        queryset = InventoryUsage.objects.all()
+        inventory_item_id = self.request.query_params.get('inventory_item', None)
+        if inventory_item_id is not None:
+            queryset = queryset.filter(inventory_item_id=inventory_item_id)
+        return queryset

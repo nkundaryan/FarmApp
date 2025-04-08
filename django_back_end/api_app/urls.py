@@ -1,13 +1,16 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from . import views
+from .views import (
+    UserViewSet, GreenhouseViewSet,
+    InventoryItemViewSet, InventoryUsageViewSet
+)
 
 router = DefaultRouter()
-router.register(r'users', views.UserViewSet)
-router.register(r'greenhouses', views.GreenhouseViewSet)
+router.register(r'users', UserViewSet)
+router.register(r'greenhouses', GreenhouseViewSet)
+router.register(r'inventory', InventoryItemViewSet)
+router.register(r'inventory-usage', InventoryUsageViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('greenhouses/<int:greenhouse_id>/status/', views.update_greenhouse_status, name='update-greenhouse-status'),
-    path('greenhouses/<int:greenhouse_id>/plant/', views.start_planting, name='start-planting'),
 ]

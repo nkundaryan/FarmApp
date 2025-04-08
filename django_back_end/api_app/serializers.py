@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import User, Greenhouse, GrowingCycle, WeeklyHarvest, MaintenanceActivity
+from .models import User, Greenhouse, GrowingCycle, WeeklyHarvest, MaintenanceActivity, InventoryItem, InventoryUsage
 
 User = get_user_model()
 
@@ -34,3 +34,15 @@ class GreenhouseSerializer(serializers.ModelSerializer):
         if active_cycle:
             return GrowingCycleSerializer(active_cycle).data
         return None
+
+class InventoryItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InventoryItem
+        fields = '__all__'
+        read_only_fields = ('created_at', 'updated_at')
+
+class InventoryUsageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InventoryUsage
+        fields = ('id', 'inventory_item', 'quantity_used', 'purpose_note', 'usage_date', 'created_at')
+        read_only_fields = ('id', 'inventory_item', 'created_at', 'usage_date')
