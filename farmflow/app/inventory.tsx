@@ -12,6 +12,8 @@ interface InventoryItem {
   concentration: string;
   created_at: string;
   updated_at: string;
+  batch_number?: string;
+  expiration_date?: string;
 }
 
 interface InventoryUsage {
@@ -51,6 +53,10 @@ export default function InventoryScreen() {
     unit: '',
     concentration: '',
   });
+
+  const [isRestockModalVisible, setIsRestockModalVisible] = useState(false);
+  const [restockQuantity, setRestockQuantity] = useState('');
+  const [restockItemId, setRestockItemId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchInventory();
@@ -158,12 +164,59 @@ export default function InventoryScreen() {
     }
   };
 
-  const handleUseItem = async () => {
+  const handleRestock = (itemId: number) => {
+    setRestockItemId(itemId);
+    setIsRestockModalVisible(true);
+  };
+
+  const confirmRestock = async () => {
+    const parsedQuantity = parseFloat(restockQuantity);
+    if (isNaN(parsedQuantity) || parsedQuantity <= 0) {
+      Alert.alert('Error', 'Please enter a valid quantity greater than 0');
+      return;
+    }
+
+    const selectedItem = inventoryItems.find(item => item.id === restockItemId);
+    if (selectedItem) {
+      const updatedQuantity = selectedItem.current_quantity + parsedQuantity;
+      // Update the state
+      setInventoryItems(prevItems =>
+        prevItems.map(item =>
+          item.id === restockItemId ? { ...item, current_quantity: updatedQuantity } : item
+        )
+      );
+
+      // Optionally, send the update to the backend
+      try {
+        const response = await fetch(`http://localhost:8000/api/inventory/${restockItemId}/`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ current_quantity: updatedQuantity }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to update inventory');
+        }
+
+        Alert.alert('Success', 'Inventory updated successfully');
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to update inventory';
+        Alert.alert('Error', errorMessage);
+      }
+    }
+    setIsRestockModalVisible(false);
+    setRestockQuantity('');
+  };
+
+  const useItem = async (itemId: number) => {
+    const selectedItem = inventoryItems.find(item => item.id === itemId);
     if (!selectedItem || selectedGreenhouseId === null) {
       Alert.alert('Error', 'Please select an active greenhouse.');
       return;
     }
-    
+
     try {
       const quantity = parseFloat(usageForm.quantity_used);
       if (isNaN(quantity) || quantity <= 0) {
@@ -214,25 +267,43 @@ export default function InventoryScreen() {
     }
   };
 
+  const handleUseItem = (itemId: number) => {
+    setSelectedItem(inventoryItems.find(item => item.id === itemId) || null);
+    setIsUseModalVisible(true);
+  };
+
+  const openUseModal = (itemId: number) => {
+    setSelectedItem(inventoryItems.find(item => item.id === itemId) || null);
+    setIsUseModalVisible(true);
+  };
+
   const renderInventoryList = () => (
-    <Card style={styles.card}>
-      <Card.Title title="Inventory Items" />
-      <Card.Content>
-        {inventoryItems.map(item => (
-          <TouchableOpacity
-            key={item.id}
-            onPress={() => setSelectedItem(item)}
-          >
-            <List.Item
-              title={item.name}
-              description={`${item.current_quantity} ${item.unit} | ${item.concentration}`}
-              left={props => <List.Icon {...props} icon="inventory" />}
-              right={props => <MaterialIcons name="chevron-right" size={24} color="#95A5A6" />}
-            />
-          </TouchableOpacity>
-        ))}
-      </Card.Content>
-    </Card>
+    <View style={styles.gridContainer}>
+      {inventoryItems.map(item => (
+        <TouchableOpacity
+          key={item.id}
+          onPress={() => setSelectedItem(item)}
+          style={styles.inventoryItem}
+        >
+          <View style={styles.inventoryHeader}>
+            <Text style={styles.inventoryName}>{item.name}</Text>
+            <MaterialIcons name="chevron-right" size={24} color="#95A5A6" />
+          </View>
+          <View style={styles.inventoryInfo}>
+            <Text style={styles.infoText}>{`${item.current_quantity} ${item.unit} | ${item.concentration}`}</Text>
+            {item.current_quantity < 10 && (
+              <Text style={styles.alertText}>Low Stock</Text>
+            )}
+            <Text style={styles.infoText}>Batch: {item.batch_number || 'N/A'}</Text>
+            <Text style={styles.infoText}>Expires: {item.expiration_date || 'N/A'}</Text>
+          </View>
+          <View style={styles.actionButtons}>
+            <Button mode="outlined" onPress={() => handleRestock(item.id)}>Restock</Button>
+            <Button mode="contained" onPress={() => openUseModal(item.id)}>Use</Button>
+          </View>
+        </TouchableOpacity>
+      ))}
+    </View>
   );
 
   const renderItemDetails = () => {
@@ -258,7 +329,7 @@ export default function InventoryScreen() {
             
             <Button
               mode="contained"
-              onPress={() => setIsUseModalVisible(true)}
+              onPress={() => openUseModal(selectedItem.id)}
               style={styles.useButton}
             >
               Use Item
@@ -409,11 +480,27 @@ export default function InventoryScreen() {
           />
           <Button 
             mode="contained" 
-            onPress={handleUseItem} 
+            onPress={() => useItem(selectedItem?.id || 0)} 
             style={styles.modalButton}
             disabled={!selectedGreenhouseId}
            >
             Record Usage
+          </Button>
+        </Modal>
+      </Portal>
+
+      <Portal>
+        <Modal visible={isRestockModalVisible} onDismiss={() => setIsRestockModalVisible(false)} contentContainerStyle={styles.modalContainer}>
+          <Text variant="headlineSmall" style={styles.modalTitle}>Restock Item</Text>
+          <TextInput
+            label="Quantity to Add"
+            value={restockQuantity}
+            onChangeText={setRestockQuantity}
+            keyboardType="numeric"
+            style={styles.input}
+          />
+          <Button mode="contained" onPress={confirmRestock} style={styles.modalButton}>
+            Confirm
           </Button>
         </Modal>
       </Portal>
@@ -433,7 +520,8 @@ export default function InventoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F6FA',
+    backgroundColor: '#F8F9FA',
+    padding: 16,
   },
   title: {
     margin: 16,
@@ -441,6 +529,7 @@ const styles = StyleSheet.create({
   },
   card: {
     margin: 16,
+    backgroundColor: '#f0f0f0',
   },
   detailsContainer: {
     flex: 1,
@@ -481,7 +570,7 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   modalContainer: {
-    backgroundColor: 'white',
+    backgroundColor: '#FFFFFF',
     padding: 20,
     margin: 20,
     borderRadius: 8,
@@ -522,5 +611,52 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     color: '#888',
     padding: 10,
+  },
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 16,
+  },
+  inventoryItem: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#ECF0F1',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    marginBottom: 16,
+    width: '48%',
+  },
+  inventoryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  inventoryName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2C3E50',
+  },
+  inventoryInfo: {
+    gap: 4,
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  alertText: {
+    color: 'red',
+    fontWeight: 'bold',
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
   },
 }); 
