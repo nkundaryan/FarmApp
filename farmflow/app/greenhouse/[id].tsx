@@ -5,7 +5,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { updateGreenhouseStatus } from '../store/slices/greenhouseSlice';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { Divider } from 'react-native-paper';
+import { Divider, Checkbox, DataTable, ProgressBar, Button } from 'react-native-paper';
 
 type Status = 'active' | 'maintenance' | 'inactive';
 
@@ -24,7 +24,7 @@ interface InventoryUsageRecord {
 }
 
 interface Greenhouse {
-  id: number;
+  id: string;
   name: string;
   size: string;
   status: Status;
@@ -36,6 +36,9 @@ interface Greenhouse {
     plantingDate: string;
     expectedHarvestDate: string;
     areaUsed: string;
+    stage: number;
+    totalStages: number;
+    stageName: string;
   };
 }
 
@@ -69,6 +72,38 @@ interface CropDetails {
   area_used: string;
 }
 
+interface Task {
+  id: number;
+  name: string;
+  completed: boolean;
+}
+
+interface InputRecord {
+  date: string;
+  quantity: string;
+  units: string;
+  notes: string;
+}
+
+interface CurrentCrop {
+  type: string;
+  variety: string;
+  plantingDate: string;
+  expectedHarvestDate: string;
+  areaUsed: string;
+  stage: number;
+  totalStages: number;
+  stageName: string;
+}
+
+interface PlantingForm {
+  cropType: string;
+  seedVariety: string;
+  plantingDate: Date;
+  harvestDate: Date;
+  areaUsed: string;
+}
+
 export default function GreenhouseDetail() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
@@ -76,7 +111,17 @@ export default function GreenhouseDetail() {
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [greenhouse, setGreenhouse] = useState<Greenhouse | null>(null);
+  const [greenhouse, setGreenhouse] = useState<Greenhouse>({
+    id: id as string,
+    name: `GH${id}`,
+    status: 'inactive', // Set to inactive for testing
+    currentCrop: {
+      type: 'Strawberries',
+      stage: 3,
+      totalStages: 5,
+      stageName: 'Flowering'
+    }
+  });
   const [currentCycle, setCurrentCycle] = useState<GrowingCycle | null>(null);
   const [maintenanceActivities, setMaintenanceActivities] = useState<MaintenanceActivity[]>([]);
   const [cropDetails, setCropDetails] = useState<CropDetails>({
@@ -90,6 +135,36 @@ export default function GreenhouseDetail() {
   const [showHarvestDatePicker, setShowHarvestDatePicker] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [inventoryUsage, setInventoryUsage] = useState<InventoryUsageRecord[]>([]);
+
+  // Sample data - replace with actual API calls
+  const [tasks] = useState<Task[]>([
+    { id: 1, name: 'Prune', completed: false },
+    { id: 2, name: 'Water', completed: false },
+    { id: 3, name: 'Apply Nutrients', completed: false },
+  ]);
+
+  const [inputRecords] = useState<InputRecord[]>([
+    { date: '03/10/2024', quantity: '100g', units: 'kg', notes: '—' },
+    { date: '02/28/2024', quantity: '80g', units: 'kg', notes: '—' },
+  ]);
+
+  const [stage] = useState({
+    current: 3,
+    total: 5,
+    name: 'Flowering'
+  });
+
+  const [lastInput] = useState('04/15/2024');
+
+  const [showPlantingDate, setShowPlantingDate] = useState(false);
+  const [showHarvestDate, setShowHarvestDate] = useState(false);
+  const [plantingForm, setPlantingForm] = useState<PlantingForm>({
+    cropType: '',
+    seedVariety: '',
+    plantingDate: new Date(),
+    harvestDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // 90 days from now
+    areaUsed: ''
+  });
 
   useEffect(() => {
     fetchGreenhouseData();
@@ -204,41 +279,43 @@ export default function GreenhouseDetail() {
     }
   };
 
-  const handleSubmit = async () => {
-    if (!greenhouse) return;
-
+  const handleStartPlanting = async () => {
     try {
-      // Format the data to match backend expectations
-      const formattedData = {
-        crop_name: cropDetails.crop_name,
-        seed_type: cropDetails.seed_type,
-        planting_date: cropDetails.planting_date.toISOString().split('T')[0],
-        expected_harvest_date: cropDetails.expected_harvest_date.toISOString().split('T')[0],
-        area_used: parseFloat(cropDetails.area_used)
-      };
-
-      // Start planting with crop details
-      const plantingResponse = await fetch(`http://127.0.0.1:8000/api/greenhouses/${greenhouse.id}/plant/`, {
+      setLoading(true);
+      
+      // First, update the greenhouse status and add the crop on the server
+      const response = await fetch(`http://localhost:8000/api/greenhouses/${id}/start_planting/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formattedData),
+        body: JSON.stringify({
+          crop_name: plantingForm.cropType,
+          seed_type: plantingForm.seedVariety,
+          planting_date: plantingForm.plantingDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
+          expected_harvest_date: plantingForm.harvestDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
+          status: 'growing'
+        }),
       });
 
-      if (!plantingResponse.ok) {
-        const errorData = await plantingResponse.json();
+      if (!response.ok) {
+        const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to start planting');
       }
 
-      const updatedGreenhouse = await plantingResponse.json();
-      setGreenhouse(updatedGreenhouse);
-      Alert.alert('Success', 'Planting started successfully');
+      const updatedData = await response.json();
       
-      // Refresh the greenhouse data to show the new status and crop
-    } catch (error) {
-      console.error('Error starting planting:', error);
-      Alert.alert('Error', 'Failed to start planting. Please try again.');
+      // Update local state with the server response
+      setGreenhouse(updatedData);
+      
+      // Show success message
+      Alert.alert('Success', 'Planting started successfully!');
+      
+    } catch (error: any) {
+      console.error('Failed to start planting:', error);
+      Alert.alert('Error', error.message || 'Failed to start planting. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -286,180 +363,204 @@ export default function GreenhouseDetail() {
     );
   }
 
+  const renderHeader = () => (
+    <>
+      {/* Back to Dashboard */}
+      <TouchableOpacity 
+        style={styles.backLink}
+        onPress={() => router.push('/dashboard')}
+      >
+        <MaterialIcons name="arrow-back" size={24} color="#2C3E50" />
+        <Text style={styles.backLinkText}>Dashboard</Text>
+      </TouchableOpacity>
+
+      {/* Greenhouse ID and Status */}
+      <View style={styles.header}>
+        <Text style={styles.greenhouseId}>{greenhouse.name}</Text>
+        <View style={styles.headerActions}>
+          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(greenhouse.status) }]}>
+            <Text style={styles.statusText}>
+              {greenhouse.status.charAt(0).toUpperCase() + greenhouse.status.slice(1)}
+            </Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.deleteButton}
+            onPress={handleDelete}
+          >
+            <MaterialIcons name="delete" size={24} color="#E74C3C" />
+          </TouchableOpacity>
+        </View>
+      </View>
+    </>
+  );
+
+  const renderPlantingForm = () => (
+    <View style={styles.formSection}>
+      <Text style={styles.sectionTitle}>Start New Planting</Text>
+      
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Crop Type</Text>
+        <TextInput
+          style={styles.input}
+          value={plantingForm.cropType}
+          onChangeText={(text) => setPlantingForm(prev => ({ ...prev, cropType: text }))}
+          placeholder="e.g., Tomatoes, Lettuce"
+        />
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Seed Variety</Text>
+        <TextInput
+          style={styles.input}
+          value={plantingForm.seedVariety}
+          onChangeText={(text) => setPlantingForm(prev => ({ ...prev, seedVariety: text }))}
+          placeholder="e.g., Beefsteak, Romaine"
+        />
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Planting Date</Text>
+        <TouchableOpacity 
+          style={styles.dateInput}
+          onPress={() => setShowPlantingDate(true)}
+        >
+          <Text>{plantingForm.plantingDate.toLocaleDateString()}</Text>
+          <MaterialIcons name="calendar-today" size={20} color="#666" />
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Expected Harvest Date</Text>
+        <TouchableOpacity 
+          style={styles.dateInput}
+          onPress={() => setShowHarvestDate(true)}
+        >
+          <Text>{plantingForm.harvestDate.toLocaleDateString()}</Text>
+          <MaterialIcons name="calendar-today" size={20} color="#666" />
+        </TouchableOpacity>
+      </View>
+
+      <Button 
+        mode="contained" 
+        onPress={handleStartPlanting}
+        loading={loading}
+        disabled={loading || !plantingForm.cropType || !plantingForm.seedVariety}
+        style={styles.submitButton}
+      >
+        Start Planting
+      </Button>
+    </View>
+  );
+
+  const renderMonitoringContent = () => (
+    <>
+      {/* Stage Progress */}
+      <View style={styles.stageContainer}>
+        <ProgressBar 
+          progress={(greenhouse.currentCrop?.stage || 0) / (greenhouse.currentCrop?.totalStages || 1)} 
+          color="#507D2A"
+          style={styles.progressBar}
+        />
+        <Text style={styles.stageText}>
+          Stage {greenhouse.currentCrop?.stage} of {greenhouse.currentCrop?.totalStages}
+          —{greenhouse.currentCrop?.stageName}
+        </Text>
+      </View>
+
+      {/* Last Input Used */}
+      <View style={styles.section}>
+        <View style={styles.sectionRow}>
+          <Text style={styles.sectionLabel}>Last Input Used</Text>
+          <Text style={styles.sectionValue}>{lastInput}</Text>
+        </View>
+      </View>
+
+      {/* Task List and Issue Log Side by Side */}
+      <View style={styles.horizontalSection}>
+        {/* Task List Box */}
+        <View style={styles.boxContainer}>
+          <Text style={styles.sectionTitle}>Task List</Text>
+          <View style={styles.taskList}>
+            {tasks.map((task) => (
+              <View key={task.id} style={styles.taskItem}>
+                <Checkbox.Android
+                  status={task.completed ? 'checked' : 'unchecked'}
+                  onPress={() => {}}
+                  color="#507D2A"
+                />
+                <Text style={styles.taskText}>{task.name}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Issue Log Box */}
+        <View style={styles.boxContainer}>
+          <Text style={styles.sectionTitle}>Issue Log</Text>
+          <View style={styles.issueList}>
+            {/* Add issue log content here */}
+          </View>
+        </View>
+      </View>
+
+      {/* Input History Table */}
+      <DataTable style={styles.table}>
+        <DataTable.Header style={styles.tableHeader}>
+          <DataTable.Title>Date</DataTable.Title>
+          <DataTable.Title>Quantity</DataTable.Title>
+          <DataTable.Title>Units</DataTable.Title>
+          <DataTable.Title>Notes</DataTable.Title>
+        </DataTable.Header>
+
+        {inputRecords.map((record, index) => (
+          <DataTable.Row key={index}>
+            <DataTable.Cell>{record.date}</DataTable.Cell>
+            <DataTable.Cell>{record.quantity}</DataTable.Cell>
+            <DataTable.Cell>{record.units}</DataTable.Cell>
+            <DataTable.Cell>{record.notes}</DataTable.Cell>
+          </DataTable.Row>
+        ))}
+      </DataTable>
+    </>
+  );
+
+  const renderInactiveMessage = () => (
+    <View style={styles.inactiveMessage}>
+      <MaterialIcons name="info" size={24} color="#666666" />
+      <Text style={styles.inactiveText}>
+        This greenhouse is currently {greenhouse.status}. 
+        Activate it to start monitoring crops.
+      </Text>
+    </View>
+  );
+
   return (
     <ScrollView style={styles.container}>
-      {/* Header Section */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <MaterialIcons name="arrow-back" size={24} color="#507D2A" />
-        </TouchableOpacity>
-        <Text style={styles.title}>{greenhouse.name}</Text>
-        <View style={styles.headerActions}> 
-          <TouchableOpacity onPress={handleDelete} style={styles.deleteButton}> 
-            <MaterialIcons name="delete-outline" size={24} color="#E74C3C" /> 
-          </TouchableOpacity>
-          <View style={styles.statusContainer}> 
-            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(greenhouse.status) }]}>
-              <Text style={styles.statusText}>{greenhouse.status.charAt(0).toUpperCase() + greenhouse.status.slice(1)}</Text>
-            </View>
-          </View>
-        </View>
-      </View>
-
-      {/* Greenhouse Info */}
-      <View style={styles.infoSection}>
-        <Text style={styles.sectionTitle}>Greenhouse Information</Text>
-        <View style={styles.infoRow}>
-          <MaterialIcons name="straighten" size={20} color="#666" />
-          <Text style={styles.infoText}>Size: {greenhouse.size} sq ft</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <MaterialIcons name="update" size={20} color="#7F8C8D" />
-          <Text style={styles.infoText}>
-            Last Updated: {new Date(greenhouse.updated_at).toLocaleDateString()}
-          </Text>
-        </View>
-      </View>
-
-      {/* Crop Form or Summary based on status */}
-      {greenhouse.status === 'inactive' ? (
-        <View style={styles.formSection}>
-          <Text style={styles.sectionTitle}>Plant New Crop</Text>
-          
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Crop Type</Text>
-            <TextInput
-              style={styles.input}
-              value={cropDetails.crop_name}
-              onChangeText={(text: string) => setCropDetails({ ...cropDetails, crop_name: text })}
-              placeholder="e.g., Tomatoes, Lettuce"
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Seed Variety</Text>
-            <TextInput
-              style={styles.input}
-              value={cropDetails.seed_type}
-              onChangeText={(text: string) => setCropDetails({ ...cropDetails, seed_type: text })}
-              placeholder="e.g., Beefsteak, Romaine"
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Planting Date</Text>
-            <TouchableOpacity 
-              style={styles.dateButton}
-              onPress={() => setShowPlantingDatePicker(true)}
-            >
-              <Text>{cropDetails.planting_date.toLocaleDateString()}</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Expected Harvest Date</Text>
-            <TouchableOpacity 
-              style={styles.dateButton}
-              onPress={() => setShowHarvestDatePicker(true)}
-            >
-              <Text>{cropDetails.expected_harvest_date.toLocaleDateString()}</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Area to be Used (sq ft)</Text>
-            <TextInput
-              style={styles.input}
-              value={cropDetails.area_used}
-              onChangeText={(text: string) => setCropDetails({ ...cropDetails, area_used: text })}
-              keyboardType="numeric"
-              placeholder="Enter area"
-            />
-          </View>
-
-          <TouchableOpacity 
-            style={styles.submitButton}
-            onPress={handleSubmit}
-          >
-            <Text style={styles.submitButtonText}>Start Planting</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <View style={styles.summarySection}>
-          <Text style={styles.sectionTitle}>Current Crop</Text>
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryRow}>
-              <MaterialIcons name="local-florist" size={20} color="#507D2A" />
-              <Text style={styles.summaryText}>Crop: {greenhouse.currentCrop?.type}</Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <MaterialIcons name="grass" size={20} color="#507D2A" />
-              <Text style={styles.summaryText}>Variety: {greenhouse.currentCrop?.variety}</Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <MaterialIcons name="event" size={20} color="#507D2A" />
-              <Text style={styles.summaryText}>Planted: {new Date(greenhouse.currentCrop?.plantingDate || '').toLocaleDateString()}</Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <MaterialIcons name="event-available" size={20} color="#507D2A" />
-              <Text style={styles.summaryText}>Harvest: {new Date(greenhouse.currentCrop?.expectedHarvestDate || '').toLocaleDateString()}</Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <MaterialIcons name="straighten" size={20} color="#507D2A" />
-              <Text style={styles.summaryText}>Area Used: {greenhouse.currentCrop?.areaUsed} sq ft</Text>
-            </View>
-          </View>
-        </View>
-      )}
-
-      {/* Inventory Usage History Section (Conditionally Rendered) */}
-      {greenhouse && greenhouse.status === 'active' && (
-        <View style={styles.usageSection}>
-          <Text style={styles.sectionTitle}>Inventory Usage History</Text>
-          {inventoryUsage.length === 0 ? (
-            <Text style={styles.noUsageText}>No inventory usage recorded for this greenhouse yet.</Text>
-          ) : (
-            inventoryUsage.map((usage, index) => (
-              <View key={usage.id} style={styles.usageItem}>
-                <View style={styles.usageHeader}>
-                  <Text style={styles.usageItemName}>{usage.inventory_item.name}</Text>
-                  <Text style={styles.usageDate}>
-                    {new Date(usage.usage_date).toLocaleDateString()}
-                  </Text>
-                </View>
-                <Text style={styles.usageDetails}>
-                  Used: {usage.quantity_used} {usage.inventory_item.unit}
-                </Text>
-                <Text style={styles.usagePurpose}>Purpose: {usage.purpose_note}</Text>
-                {index < inventoryUsage.length - 1 && <Divider style={styles.usageDivider} />} 
-              </View>
-            ))
-          )}
-        </View>
-      )}
+      {renderHeader()}
+      {greenhouse.status === 'active' ? renderMonitoringContent() : renderPlantingForm()}
 
       {/* Date Pickers */}
-      {showPlantingDatePicker && (
+      {showPlantingDate && (
         <DateTimePicker
-          value={cropDetails.planting_date}
+          value={plantingForm.plantingDate}
           mode="date"
           onChange={(event, date) => {
-            setShowPlantingDatePicker(false);
+            setShowPlantingDate(false);
             if (date) {
-              setCropDetails({ ...cropDetails, planting_date: date });
+              setPlantingForm(prev => ({ ...prev, plantingDate: date }));
             }
           }}
         />
       )}
 
-      {showHarvestDatePicker && (
+      {showHarvestDate && (
         <DateTimePicker
-          value={cropDetails.expected_harvest_date}
+          value={plantingForm.harvestDate}
           mode="date"
           onChange={(event, date) => {
-            setShowHarvestDatePicker(false);
+            setShowHarvestDate(false);
             if (date) {
-              setCropDetails({ ...cropDetails, expected_harvest_date: date });
+              setPlantingForm(prev => ({ ...prev, harvestDate: date }));
             }
           }}
         />
@@ -485,6 +586,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+    padding: 20,
   },
   loadingContainer: {
     flex: 1,
@@ -517,10 +619,8 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ECF0F1',
-    backgroundColor: '#FFFFFF',
+    justifyContent: 'space-between',
+    marginBottom: 20,
   },
   backButton: {
     padding: 8,
@@ -582,8 +682,8 @@ const styles = StyleSheet.create({
   },
   statusBadge: {
     paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
   },
   statusText: {
     color: '#FFFFFF',
@@ -788,5 +888,120 @@ const styles = StyleSheet.create({
   },
   usageDivider: {
      marginTop: 12, 
+  },
+  stageContainer: {
+    marginBottom: 30,
+  },
+  progressBar: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#E0E0E0',
+    marginBottom: 10,
+  },
+  stageText: {
+    fontSize: 18,
+    color: '#2C3E50',
+    marginTop: 8,
+  },
+  section: {
+    marginBottom: 30,
+  },
+  sectionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  sectionLabel: {
+    fontSize: 18,
+    color: '#2C3E50',
+  },
+  sectionValue: {
+    fontSize: 18,
+    color: '#2C3E50',
+  },
+  taskList: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  taskItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  taskText: {
+    fontSize: 16,
+    color: '#2C3E50',
+    marginLeft: 8,
+  },
+  table: {
+    marginBottom: 30,
+  },
+  tableHeader: {
+    backgroundColor: '#F5F6FA',
+  },
+  backLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  backLinkText: {
+    fontSize: 18,
+    color: '#2C3E50',
+    marginLeft: 8,
+  },
+  greenhouseId: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#2C3E50',
+  },
+  inactiveMessage: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8F9FA',
+    padding: 20,
+    borderRadius: 8,
+    marginTop: 20,
+  },
+  inactiveText: {
+    fontSize: 16,
+    color: '#666666',
+    marginLeft: 12,
+    flex: 1,
+  },
+  dateInput: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    padding: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  horizontalSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 30,
+    gap: 16,
+  },
+  boxContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    padding: 16,
+  },
+  issueList: {
+    marginTop: 8,
+    minHeight: 200, // Give some height to the issue log box
   },
 }); 

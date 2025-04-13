@@ -37,6 +37,11 @@ export const NavigationBar = () => {
         onPress={() => router.push('/finance')}
         color={isActive('finance') ? '#2ECC71' : '#95A5A6'}
       />
+      <Appbar.Action 
+        icon="analytics" 
+        onPress={() => router.push('/analytics')}
+        color={isActive('analytics') ? '#2ECC71' : '#95A5A6'}
+      />
     </Appbar.Header>
   );
 };

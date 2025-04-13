@@ -24,6 +24,7 @@ export default function Layout() {
               <Stack.Screen name="inventory" />
               <Stack.Screen name="reports" />
               <Stack.Screen name="finance" />
+              <Stack.Screen name="analytics" />
             </Stack>
           </View>
         </PaperProvider>
