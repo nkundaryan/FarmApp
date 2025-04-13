@@ -19,7 +19,8 @@ class GrowingCycleSerializer(serializers.ModelSerializer):
         model = GrowingCycle
         fields = ('id', 'greenhouse', 'crop_name', 'seed_type', 'planting_date', 
                  'expected_harvest_date', 'actual_harvest_date', 'status', 
-                 'termination_reason', 'termination_notes', 'notes')
+                 'termination_reason', 'termination_notes', 'notes',
+                 'stage', 'total_stages', 'stage_name')
 
 # Forward declaration for InventoryUsageSerializer if needed, or ensure definition order
 # class InventoryUsageSerializer(serializers.Serializer):

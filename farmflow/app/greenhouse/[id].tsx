@@ -24,9 +24,9 @@ interface InventoryUsageRecord {
 }
 
 interface Greenhouse {
-  id: string;
+  id: number;
   name: string;
-  size: string;
+  size: number;
   status: Status;
   created_at: string;
   updated_at: string;
@@ -111,15 +111,22 @@ export default function GreenhouseDetail() {
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [greenhouse, setGreenhouse] = useState<Greenhouse>({
-    id: id as string,
+  const [greenhouse, setGreenhouse] = useState<Greenhouse | undefined>({
+    id: parseInt(id as string),
     name: `GH${id}`,
-    status: 'inactive', // Set to inactive for testing
+    size: 0,
+    status: 'inactive',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
     currentCrop: {
       type: 'Strawberries',
-      stage: 3,
+      variety: 'Unknown',
+      plantingDate: new Date().toISOString(),
+      expectedHarvestDate: new Date().toISOString(),
+      areaUsed: '0',
+      stage: 1,
       totalStages: 5,
-      stageName: 'Flowering'
+      stageName: 'Germination'
     }
   });
   const [currentCycle, setCurrentCycle] = useState<GrowingCycle | null>(null);
@@ -213,7 +220,7 @@ export default function GreenhouseDetail() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       console.error('Error fetching greenhouse data:', err);
-      setGreenhouse(null);
+      setGreenhouse(undefined);
       setCurrentCycle(null);
       setMaintenanceActivities([]);
       setInventoryUsage([]);
@@ -317,6 +324,65 @@ export default function GreenhouseDetail() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleStageChange = async (newStage: number) => {
+    if (!greenhouse?.currentCrop) return;
+    
+    try {
+      setLoading(true);
+      console.log('Current stage before update:', greenhouse.currentCrop?.stage);
+      
+      const response = await fetch(`http://localhost:8000/api/greenhouses/${id}/update_stage/`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          stage: newStage
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update stage');
+      }
+
+      const updatedData = await response.json();
+      console.log('Updated data received:', updatedData);
+      
+      // Update the greenhouse state with the new data
+      setGreenhouse(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          currentCrop: {
+            ...prev.currentCrop!,
+            stage: updatedData.current_cycle?.stage || newStage,
+            stageName: updatedData.current_cycle?.stage_name || getStageName(newStage)
+          }
+        };
+      });
+      
+      console.log('Greenhouse state updated with new stage:', newStage);
+      
+    } catch (error: any) {
+      console.error('Failed to update stage:', error);
+      Alert.alert('Error', error.message || 'Failed to update stage. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStageName = (stage: number): string => {
+    const stages = [
+      'Germination',
+      'Seedling',
+      'Vegetative Growth',
+      'Flowering',
+      'Maturation'
+    ];
+    return stages[stage - 1] || 'Unknown Stage';
   };
 
   if (loading) {
@@ -456,15 +522,55 @@ export default function GreenhouseDetail() {
     <>
       {/* Stage Progress */}
       <View style={styles.stageContainer}>
-        <ProgressBar 
-          progress={(greenhouse.currentCrop?.stage || 0) / (greenhouse.currentCrop?.totalStages || 1)} 
-          color="#507D2A"
-          style={styles.progressBar}
-        />
-        <Text style={styles.stageText}>
-          Stage {greenhouse.currentCrop?.stage} of {greenhouse.currentCrop?.totalStages}
-          —{greenhouse.currentCrop?.stageName}
-        </Text>
+        <View style={styles.stageLeft}>
+          <TouchableOpacity 
+            style={styles.stageButton}
+            onPress={() => {
+              const currentStage = greenhouse.currentCrop?.stage || 1;
+              if (currentStage > 1) {
+                handleStageChange(currentStage - 1);
+              }
+            }}
+            disabled={loading || (greenhouse.currentCrop?.stage || 1) <= 1}
+          >
+            <MaterialIcons 
+              name="arrow-back" 
+              size={24} 
+              color={(greenhouse.currentCrop?.stage || 1) <= 1 ? '#CCCCCC' : '#507D2A'} 
+            />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.stageCenter}>
+          <ProgressBar 
+            progress={(greenhouse.currentCrop?.stage || 0) / 5} 
+            color="#507D2A"
+            style={styles.progressBar}
+          />
+          <View style={styles.stageTextContainer}>
+            <Text style={styles.stageText}>Stage {greenhouse.currentCrop?.stage || 1} of 5</Text>
+            <Text style={styles.stageName}>{getStageName(greenhouse.currentCrop?.stage || 1)}</Text>
+          </View>
+        </View>
+
+        <View style={styles.stageRight}>
+          <TouchableOpacity 
+            style={styles.stageButton}
+            onPress={() => {
+              const currentStage = greenhouse.currentCrop?.stage || 1;
+              if (currentStage < 5) {
+                handleStageChange(currentStage + 1);
+              }
+            }}
+            disabled={loading || (greenhouse.currentCrop?.stage || 1) >= 5}
+          >
+            <MaterialIcons 
+              name="arrow-forward" 
+              size={24} 
+              color={(greenhouse.currentCrop?.stage || 1) >= 5 ? '#CCCCCC' : '#507D2A'} 
+            />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Last Input Used */}
@@ -479,7 +585,18 @@ export default function GreenhouseDetail() {
       <View style={styles.horizontalSection}>
         {/* Task List Box */}
         <View style={styles.boxContainer}>
-          <Text style={styles.sectionTitle}>Task List</Text>
+          <View style={styles.boxHeader}>
+            <Text style={styles.sectionTitle}>Task List</Text>
+            <TouchableOpacity 
+              style={styles.addButton}
+              onPress={() => {
+                // TODO: Handle adding new task
+                console.log('Add new task');
+              }}
+            >
+              <MaterialIcons name="add" size={24} color="#507D2A" />
+            </TouchableOpacity>
+          </View>
           <View style={styles.taskList}>
             {tasks.map((task) => (
               <View key={task.id} style={styles.taskItem}>
@@ -496,7 +613,18 @@ export default function GreenhouseDetail() {
 
         {/* Issue Log Box */}
         <View style={styles.boxContainer}>
-          <Text style={styles.sectionTitle}>Issue Log</Text>
+          <View style={styles.boxHeader}>
+            <Text style={styles.sectionTitle}>Issue Log</Text>
+            <TouchableOpacity 
+              style={styles.addButton}
+              onPress={() => {
+                // TODO: Handle adding new issue
+                console.log('Add new issue');
+              }}
+            >
+              <MaterialIcons name="add" size={24} color="#507D2A" />
+            </TouchableOpacity>
+          </View>
           <View style={styles.issueList}>
             {/* Add issue log content here */}
           </View>
@@ -890,18 +1018,49 @@ const styles = StyleSheet.create({
      marginTop: 12, 
   },
   stageContainer: {
-    marginBottom: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    padding: 16,
+    marginBottom: 24,
+    height: 80,
+  },
+  stageLeft: {
+    width: 50,
+    alignItems: 'center',
+  },
+  stageCenter: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+  stageRight: {
+    width: 50,
+    alignItems: 'center',
   },
   progressBar: {
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#E0E0E0',
-    marginBottom: 10,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#E8F5E9',
+    marginBottom: 8,
+  },
+  stageTextContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
   },
   stageText: {
-    fontSize: 18,
+    fontSize: 16,
     color: '#2C3E50',
-    marginTop: 8,
+    fontWeight: '600',
+  },
+  stageName: {
+    fontSize: 16,
+    color: '#507D2A',
+    fontWeight: '700',
   },
   section: {
     marginBottom: 30,
@@ -1003,5 +1162,21 @@ const styles = StyleSheet.create({
   issueList: {
     marginTop: 8,
     minHeight: 200, // Give some height to the issue log box
+  },
+  stageButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#F5F5F5',
+  },
+  boxHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  addButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#F5F5F5',
   },
 }); 

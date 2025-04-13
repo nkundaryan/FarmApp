@@ -108,6 +108,47 @@ def start_planting(request, greenhouse_id):
 
     return Response(response_data)
 
+@api_view(['PATCH'])
+def update_growing_stage(request, greenhouse_id):
+    try:
+        greenhouse = Greenhouse.objects.get(id=greenhouse_id)
+    except Greenhouse.DoesNotExist:
+        return Response({"error": "Greenhouse not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    if greenhouse.status != 'active':
+        return Response({"error": "Can only update stage for active greenhouses"}, 
+                       status=status.HTTP_400_BAD_REQUEST)
+
+    # Look for cycles that are in 'growing' status
+    active_cycle = greenhouse.cycles.filter(status='growing').first()
+    if not active_cycle:
+        return Response({"error": "No active growing cycle found"}, 
+                       status=status.HTTP_400_BAD_REQUEST)
+
+    new_stage = request.data.get('stage')
+    print(f"Received stage update request: {request.data}")  # Debug log
+    print(f"Current active cycle: {active_cycle}")  # Debug log
+    
+    if not new_stage or not isinstance(new_stage, int) or new_stage < 1 or new_stage > 5:
+        print(f"Invalid stage number: {new_stage}")  # Debug log
+        return Response({"error": "Invalid stage number"}, 
+                       status=status.HTTP_400_BAD_REQUEST)
+
+    # Update the stage and stage name
+    active_cycle.stage = new_stage
+    stage_names = {
+        1: 'Germination',
+        2: 'Seedling',
+        3: 'Vegetative Growth',
+        4: 'Flowering',
+        5: 'Maturation'
+    }
+    active_cycle.stage_name = stage_names[new_stage]
+    active_cycle.save()
+
+    response_data = GreenhouseSerializer(greenhouse).data
+    return Response(response_data)
+
 class InventoryItemViewSet(viewsets.ModelViewSet):
     queryset = InventoryItem.objects.all()
     serializer_class = InventoryItemSerializer

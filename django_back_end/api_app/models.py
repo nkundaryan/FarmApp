@@ -42,9 +42,11 @@ class Greenhouse(models.Model):
 
 class GrowingCycle(models.Model):
     CYCLE_STATUS_CHOICES = [
-        ('preparing', 'Preparing'),
-        ('growing', 'Growing'),
-        ('harvesting', 'Harvesting'),
+        ('germination', 'Germination'),
+        ('seedling', 'Seedling'),
+        ('vegetative_growth', 'Vegetative Growth'),
+        ('flowering', 'Flowering'),
+        ('maturation', 'Maturation'),
         ('completed', 'Completed'),
         ('terminated', 'Terminated Early')
     ]
@@ -62,10 +64,13 @@ class GrowingCycle(models.Model):
     planting_date = models.DateField()
     expected_harvest_date = models.DateField()
     actual_harvest_date = models.DateField(null=True, blank=True)
-    status = models.CharField(max_length=20, choices=CYCLE_STATUS_CHOICES)
+    status = models.CharField(max_length=20, choices=CYCLE_STATUS_CHOICES, default='germination')
     termination_reason = models.CharField(max_length=20, choices=TERMINATION_REASON_CHOICES, null=True, blank=True)
     termination_notes = models.TextField(null=True, blank=True)
     notes = models.TextField(null=True, blank=True)
+    stage = models.IntegerField(default=1)
+    total_stages = models.IntegerField(default=5)
+    stage_name = models.CharField(max_length=50, default='Germination')
 
     def __str__(self):
         return f"{self.greenhouse.name} - {self.crop_name} ({self.planting_date})"
