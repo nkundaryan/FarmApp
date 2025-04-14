@@ -69,6 +69,9 @@ def update_greenhouse_status(request, greenhouse_id):
 
 @api_view(['POST'])
 def start_planting(request, greenhouse_id):
+    print(f"Received start_planting request for greenhouse {greenhouse_id}")
+    print(f"Request data: {request.data}")
+    
     try:
         greenhouse = Greenhouse.objects.get(id=greenhouse_id)
     except Greenhouse.DoesNotExist:
@@ -78,7 +81,7 @@ def start_planting(request, greenhouse_id):
         return Response({"error": "Can only plant in inactive greenhouses"}, 
                        status=status.HTTP_400_BAD_REQUEST)
 
-    active_cycle = greenhouse.cycles.filter(status__in=['preparing', 'growing']).first()
+    active_cycle = greenhouse.cycles.filter(status__in=['germination', 'seedling', 'vegetative_growth', 'flowering', 'maturation']).first()
     if active_cycle:
         return Response({"error": "Greenhouse already has an active growing cycle"}, 
                        status=status.HTTP_400_BAD_REQUEST)
@@ -90,14 +93,18 @@ def start_planting(request, greenhouse_id):
         'seed_type': request.data.get('seed_type'),
         'planting_date': request.data.get('planting_date'),
         'expected_harvest_date': request.data.get('expected_harvest_date'),
-        'status': 'growing'
+        'status': 'germination'
     }
+    
+    print(f"Creating growing cycle with data: {cycle_data}")
 
     serializer = GrowingCycleSerializer(data=cycle_data)
     if not serializer.is_valid():
+        print(f"Validation errors: {serializer.errors}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     growing_cycle = serializer.save()
+    print(f"Growing cycle created: {growing_cycle}")
 
     # Update greenhouse status
     greenhouse.status = 'active'
@@ -119,8 +126,11 @@ def update_growing_stage(request, greenhouse_id):
         return Response({"error": "Can only update stage for active greenhouses"}, 
                        status=status.HTTP_400_BAD_REQUEST)
 
-    # Look for cycles that are in 'growing' status
-    active_cycle = greenhouse.cycles.filter(status='growing').first()
+    # Look for cycles in any active growing stage
+    active_cycle = greenhouse.cycles.filter(
+        status__in=['germination', 'seedling', 'vegetative_growth', 'flowering', 'maturation']
+    ).first()
+    
     if not active_cycle:
         return Response({"error": "No active growing cycle found"}, 
                        status=status.HTTP_400_BAD_REQUEST)
@@ -144,6 +154,17 @@ def update_growing_stage(request, greenhouse_id):
         5: 'Maturation'
     }
     active_cycle.stage_name = stage_names[new_stage]
+    
+    # Also update the cycle status to match the stage
+    status_map = {
+        1: 'germination',
+        2: 'seedling',
+        3: 'vegetative_growth',
+        4: 'flowering',
+        5: 'maturation'
+    }
+    active_cycle.status = status_map[new_stage]
+    
     active_cycle.save()
 
     response_data = GreenhouseSerializer(greenhouse).data

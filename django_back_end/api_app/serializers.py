@@ -15,12 +15,19 @@ class UserSerializer(serializers.ModelSerializer):
         }
 
 class GrowingCycleSerializer(serializers.ModelSerializer):
+    def validate(self, data):
+        print(f"Validating growing cycle data: {data}")
+        return data
+
     class Meta:
         model = GrowingCycle
         fields = ('id', 'greenhouse', 'crop_name', 'seed_type', 'planting_date', 
                  'expected_harvest_date', 'actual_harvest_date', 'status', 
                  'termination_reason', 'termination_notes', 'notes',
                  'stage', 'total_stages', 'stage_name')
+        read_only_fields = ('id', 'actual_harvest_date', 'termination_reason', 
+                          'termination_notes', 'notes', 'stage', 'total_stages', 
+                          'stage_name')
 
 # Forward declaration for InventoryUsageSerializer if needed, or ensure definition order
 # class InventoryUsageSerializer(serializers.Serializer):
@@ -42,9 +49,21 @@ class GreenhouseSerializer(serializers.ModelSerializer):
         read_only_fields = ('created_at', 'updated_at')
 
     def get_current_cycle(self, obj):
-        active_cycle = obj.cycles.filter(status__in=['preparing', 'growing']).first()
+        # Look for cycles in any active growing stage
+        active_cycle = obj.cycles.filter(
+            status__in=['germination', 'seedling', 'vegetative_growth', 'flowering', 'maturation']
+        ).first()
         if active_cycle:
-            return GrowingCycleSerializer(active_cycle).data
+            cycle_data = GrowingCycleSerializer(active_cycle).data
+            return {
+                'type': cycle_data['crop_name'],
+                'variety': cycle_data['seed_type'],
+                'plantingDate': cycle_data['planting_date'],
+                'expectedHarvestDate': cycle_data['expected_harvest_date'],
+                'stage': cycle_data['stage'],
+                'totalStages': cycle_data.get('total_stages', 5),
+                'stageName': cycle_data.get('stage_name', 'Unknown Stage')
+            }
         return None
 
 class InventoryItemSerializer(serializers.ModelSerializer):

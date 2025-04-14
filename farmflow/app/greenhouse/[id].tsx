@@ -111,8 +111,8 @@ export default function GreenhouseDetail() {
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [greenhouse, setGreenhouse] = useState<Greenhouse | undefined>({
-    id: parseInt(id as string),
+  const [greenhouse, setGreenhouse] = useState<Greenhouse>({
+    id: typeof id === 'string' ? parseInt(id, 10) : Array.isArray(id) ? parseInt(id[0], 10) : 0,
     name: `GH${id}`,
     size: 0,
     status: 'inactive',
@@ -124,9 +124,9 @@ export default function GreenhouseDetail() {
       plantingDate: new Date().toISOString(),
       expectedHarvestDate: new Date().toISOString(),
       areaUsed: '0',
-      stage: 1,
+      stage: 3,
       totalStages: 5,
-      stageName: 'Germination'
+      stageName: 'Flowering'
     }
   });
   const [currentCycle, setCurrentCycle] = useState<GrowingCycle | null>(null);
@@ -188,17 +188,26 @@ export default function GreenhouseDetail() {
         throw new Error('Failed to fetch greenhouse details');
       }
       const data = await response.json();
-      setGreenhouse(data);
-
-      // Fetch current growing cycle
-      const cyclesResponse = await fetch(`http://localhost:8000/api/greenhouses/${id}/cycles/`);
-      if (cyclesResponse.ok) {
-        const cyclesData = await cyclesResponse.json();
-        const activeCycle = cyclesData.find((cycle: GrowingCycle) => 
-          ['preparing', 'growing', 'harvesting'].includes(cycle.status)
-        );
-        setCurrentCycle(activeCycle || null);
-      }
+      
+      // Update greenhouse state with the response data
+      setGreenhouse({
+        id: data.id,
+        name: data.name,
+        size: data.size,
+        status: data.status,
+        created_at: data.created_at,
+        updated_at: data.updated_at,
+        currentCrop: data.current_cycle ? {
+          type: data.current_cycle.type,
+          variety: data.current_cycle.variety,
+          plantingDate: data.current_cycle.plantingDate,
+          expectedHarvestDate: data.current_cycle.expectedHarvestDate,
+          stage: data.current_cycle.stage,
+          totalStages: data.current_cycle.totalStages,
+          stageName: data.current_cycle.stageName,
+          areaUsed: data.current_cycle.areaUsed || '0'
+        } : undefined
+      });
 
       // Fetch maintenance activities
       const maintenanceResponse = await fetch(`http://localhost:8000/api/greenhouses/${id}/maintenance/`);
@@ -220,10 +229,6 @@ export default function GreenhouseDetail() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       console.error('Error fetching greenhouse data:', err);
-      setGreenhouse(undefined);
-      setCurrentCycle(null);
-      setMaintenanceActivities([]);
-      setInventoryUsage([]);
     } finally {
       setLoading(false);
     }
@@ -300,8 +305,7 @@ export default function GreenhouseDetail() {
           crop_name: plantingForm.cropType,
           seed_type: plantingForm.seedVariety,
           planting_date: plantingForm.plantingDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
-          expected_harvest_date: plantingForm.harvestDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
-          status: 'growing'
+          expected_harvest_date: plantingForm.harvestDate.toISOString().split('T')[0] // Format as YYYY-MM-DD
         }),
       });
 
@@ -327,11 +331,10 @@ export default function GreenhouseDetail() {
   };
 
   const handleStageChange = async (newStage: number) => {
-    if (!greenhouse?.currentCrop) return;
-    
     try {
       setLoading(true);
       console.log('Current stage before update:', greenhouse.currentCrop?.stage);
+      console.log('Attempting to update to stage:', newStage);
       
       const response = await fetch(`http://localhost:8000/api/greenhouses/${id}/update_stage/`, {
         method: 'PATCH',
@@ -352,17 +355,20 @@ export default function GreenhouseDetail() {
       console.log('Updated data received:', updatedData);
       
       // Update the greenhouse state with the new data
-      setGreenhouse(prev => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          currentCrop: {
-            ...prev.currentCrop!,
-            stage: updatedData.current_cycle?.stage || newStage,
-            stageName: updatedData.current_cycle?.stage_name || getStageName(newStage)
-          }
-        };
-      });
+      setGreenhouse(prev => ({
+        ...prev,
+        currentCrop: {
+          ...(prev.currentCrop || {}),
+          stage: newStage,
+          stageName: getStageName(newStage),
+          type: prev.currentCrop?.type || '',
+          variety: prev.currentCrop?.variety || '',
+          plantingDate: prev.currentCrop?.plantingDate || new Date().toISOString(),
+          expectedHarvestDate: prev.currentCrop?.expectedHarvestDate || new Date().toISOString(),
+          areaUsed: prev.currentCrop?.areaUsed || '0',
+          totalStages: 5
+        }
+      }));
       
       console.log('Greenhouse state updated with new stage:', newStage);
       
@@ -585,18 +591,7 @@ export default function GreenhouseDetail() {
       <View style={styles.horizontalSection}>
         {/* Task List Box */}
         <View style={styles.boxContainer}>
-          <View style={styles.boxHeader}>
-            <Text style={styles.sectionTitle}>Task List</Text>
-            <TouchableOpacity 
-              style={styles.addButton}
-              onPress={() => {
-                // TODO: Handle adding new task
-                console.log('Add new task');
-              }}
-            >
-              <MaterialIcons name="add" size={24} color="#507D2A" />
-            </TouchableOpacity>
-          </View>
+          <Text style={styles.sectionTitle}>Task List</Text>
           <View style={styles.taskList}>
             {tasks.map((task) => (
               <View key={task.id} style={styles.taskItem}>
@@ -613,18 +608,7 @@ export default function GreenhouseDetail() {
 
         {/* Issue Log Box */}
         <View style={styles.boxContainer}>
-          <View style={styles.boxHeader}>
-            <Text style={styles.sectionTitle}>Issue Log</Text>
-            <TouchableOpacity 
-              style={styles.addButton}
-              onPress={() => {
-                // TODO: Handle adding new issue
-                console.log('Add new issue');
-              }}
-            >
-              <MaterialIcons name="add" size={24} color="#507D2A" />
-            </TouchableOpacity>
-          </View>
+          <Text style={styles.sectionTitle}>Issue Log</Text>
           <View style={styles.issueList}>
             {/* Add issue log content here */}
           </View>
@@ -1164,17 +1148,6 @@ const styles = StyleSheet.create({
     minHeight: 200, // Give some height to the issue log box
   },
   stageButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: '#F5F5F5',
-  },
-  boxHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  addButton: {
     padding: 8,
     borderRadius: 20,
     backgroundColor: '#F5F5F5',
