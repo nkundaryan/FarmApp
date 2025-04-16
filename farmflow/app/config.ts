@@ -1,5 +1,5 @@
 const DEV_API_URL = 'http://127.0.0.1:8000';
-const PROD_API_URL = 'http://13.57.38.117:8000';  // EC2 instance URL
+const PROD_API_URL = 'http://3.101.140.225:8000';  // EC2 instance URL
 
 // Set to false when deploying to EC2
 const isDevelopment = false;

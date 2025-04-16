@@ -77,7 +77,7 @@ export default function InventoryScreen() {
 
   const fetchInventory = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/inventory/');
+      const response = await fetch(`${API_URL}/api/inventory/`);
       if (!response.ok) {
         throw new Error('Failed to fetch inventory');
       }
@@ -92,7 +92,7 @@ export default function InventoryScreen() {
 
   const fetchUsageHistory = async (itemId: number) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/inventory-usage/?inventory_item=${itemId}`);
+      const response = await fetch(`${API_URL}/api/inventory-usage/?inventory_item=${itemId}`);
       if (!response.ok) {
         throw new Error('Failed to fetch usage history');
       }
@@ -125,7 +125,7 @@ export default function InventoryScreen() {
         return;
       }
 
-      const response = await fetch('http://localhost:8000/api/inventory/', {
+      const response = await fetch(`${API_URL}/api/inventory/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -189,7 +189,7 @@ export default function InventoryScreen() {
 
       // Optionally, send the update to the backend
       try {
-        const response = await fetch(`http://localhost:8000/api/inventory/${restockItemId}/`, {
+        const response = await fetch(`${API_URL}/api/inventory/${restockItemId}/`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -238,7 +238,7 @@ export default function InventoryScreen() {
       const formattedQuantity = quantity.toFixed(2);
       const greenhouseIdToSend = selectedGreenhouseId;
 
-      const response = await fetch(`http://localhost:8000/api/inventory/${selectedItem.id}/record_usage/`, {
+      const response = await fetch(`${API_URL}/api/inventory/${selectedItem.id}/record_usage/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
