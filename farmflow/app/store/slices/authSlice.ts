@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { API_URL } from '../../config';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -18,7 +19,7 @@ export const login = createAsyncThunk(
   'auth/login',
   async (credentials: { username: string; password: string }) => {
     try {
-      const response = await fetch('http://localhost:8000/api/login/', {
+      const response = await fetch(`${API_URL}/api/login/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

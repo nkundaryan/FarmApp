@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Navbar from './components/Navbar';
+import { API_URL } from './config';
 
 interface Task {
   id: number;
@@ -134,7 +135,7 @@ export default function TasksScreen() {
           return;
         }
 
-        const response = await fetch('http://localhost:8000/api/tasks/', {
+        const response = await fetch(`${API_URL}/api/tasks/`, {
           headers: {
             'Authorization': `Token ${token}`,
           },
@@ -192,7 +193,7 @@ export default function TasksScreen() {
 
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`http://localhost:8000/api/tasks/${id}/`, {
+      const response = await fetch(`${API_URL}/api/tasks/${id}/`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Token ${token}`,
@@ -206,6 +207,26 @@ export default function TasksScreen() {
       }
     } catch (error) {
       console.error('Error deleting task:', error);
+    }
+  };
+
+  const handleTaskComplete = async (id: number) => {
+    try {
+      const response = await fetch(`${API_URL}/api/tasks/${id}/`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ completed: true }),
+      });
+
+      if (response.ok) {
+        setTasks(tasks.filter(task => task.id !== id));
+      } else {
+        console.error('Failed to complete task');
+      }
+    } catch (error) {
+      console.error('Error completing task:', error);
     }
   };
 

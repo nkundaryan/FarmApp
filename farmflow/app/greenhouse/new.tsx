@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
+import { API_URL } from '../config';
 
 interface FormErrors {
   name?: string;
@@ -38,7 +39,7 @@ export default function NewGreenhouseScreen() {
 
     try {
       console.log('Sending request to create greenhouse...');
-      const response = await fetch('http://localhost:8000/api/greenhouses/', {
+      const response = await fetch(`${API_URL}/api/greenhouses/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

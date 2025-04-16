@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { useAppDispatch, useAppSelector } from './store/hooks';
 import { fetchGreenhouses, setSelectedGreenhouse, updateGreenhouseStatus } from './store/slices/greenhouseSlice';
 import { RootState } from './store';
+import { API_URL } from './config';
 
 const { width } = Dimensions.get('window');
 const PADDING = 12;
@@ -113,34 +114,31 @@ export default function GreenhousesScreen() {
     setViewMode(viewMode === 'grid' ? 'list' : 'grid');
   };
 
-  const handleStatusChange = async (newStatus: Status) => {
-    if (selectedGreenhouse) {
-      try {
-        // First update the backend
-        const response = await fetch(`http://localhost:8000/api/greenhouses/${selectedGreenhouse.id}/status/`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ status: newStatus }),
-        });
+  const handleStatusChange = async (selectedGreenhouse: Greenhouse) => {
+    try {
+      const response = await fetch(`${API_URL}/api/greenhouses/${selectedGreenhouse.id}/status/`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: 'active' }),
+      });
 
-        if (!response.ok) {
-          throw new Error('Failed to update status');
-        }
-
-        // Update the local state
-        dispatch(updateGreenhouseStatus({ 
-          id: selectedGreenhouse.id, 
-          status: newStatus 
-        }));
-
-        setShowStatusModal(false);
-        setSelectedGreenhouseForStatus(null);
-      } catch (error) {
-        console.error('Failed to update status:', error);
-        Alert.alert('Error', 'Failed to update greenhouse status. Please try again.');
+      if (!response.ok) {
+        throw new Error('Failed to update status');
       }
+
+      // Update the local state
+      dispatch(updateGreenhouseStatus({ 
+        id: selectedGreenhouse.id, 
+        status: 'active' 
+      }));
+
+      setShowStatusModal(false);
+      setSelectedGreenhouseForStatus(null);
+    } catch (error) {
+      console.error('Failed to update status:', error);
+      Alert.alert('Error', 'Failed to update greenhouse status. Please try again.');
     }
   };
 
@@ -156,19 +154,19 @@ export default function GreenhousesScreen() {
           <Text style={styles.modalTitle}>Change Status</Text>
           <TouchableOpacity 
             style={[styles.statusOption, { backgroundColor: '#4CAF50' }]}
-            onPress={() => handleStatusChange('active')}
+            onPress={() => handleStatusChange(selectedGreenhouse!)}
           >
             <Text style={styles.statusOptionText}>Set as Active</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.statusOption, { backgroundColor: '#FFA726' }]}
-            onPress={() => handleStatusChange('maintenance')}
+            onPress={() => handleStatusChange(selectedGreenhouse!)}
           >
             <Text style={styles.statusOptionText}>Set as Maintenance</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.statusOption, { backgroundColor: '#FF5252' }]}
-            onPress={() => handleStatusChange('inactive')}
+            onPress={() => handleStatusChange(selectedGreenhouse!)}
           >
             <Text style={styles.statusOptionText}>Set as Inactive</Text>
           </TouchableOpacity>
