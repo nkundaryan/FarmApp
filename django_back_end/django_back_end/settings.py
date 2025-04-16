@@ -61,6 +61,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:19006",
     "http://localhost:19000",
     "http://localhost:8081",
+    "http://13.57.38.117:8081",  # EC2 Expo web port
+    "http://13.57.38.117:5173",  # EC2 alternative port
 ]
 
 ROOT_URLCONF = 'django_back_end.urls'
