@@ -29,8 +29,29 @@ interface Greenhouse {
     planting_date: string;
     expected_harvest_date: string;
     status: string;
+    stage: number;
+    type?: string;
+    variety?: string;
   };
 }
+
+// Add this helper component above GreenhousesScreen
+const StageDots = ({ currentStage }: { currentStage: number }) => (
+  <View style={{ flexDirection: 'row', gap: 4, marginLeft: 'auto' }}>
+    {[1,2,3,4,5].map((n) => (
+      <View
+        key={n}
+        style={{
+          width: 8,
+          height: 8,
+          borderRadius: 4,
+          marginHorizontal: 1,
+          backgroundColor: n <= currentStage ? '#4CAF50' : '#E0E0E0',
+        }}
+      />
+    ))}
+  </View>
+);
 
 export default function GreenhousesScreen() {
   const router = useRouter();
@@ -214,7 +235,9 @@ export default function GreenhousesScreen() {
               <View style={styles.infoRow}>
                 <MaterialIcons name="eco" size={20} color="#4CAF50" />
                 <Text style={styles.infoText}>
-                  Growing: {item.current_cycle.crop_name} ({item.current_cycle.seed_type})
+                  Growing: {item.current_cycle.type
+                    ? `${item.current_cycle.type}${item.current_cycle.variety ? ` (${item.current_cycle.variety})` : ''}`
+                    : '—'}
                 </Text>
               </View>
               <View style={styles.infoRow}>
@@ -226,6 +249,12 @@ export default function GreenhousesScreen() {
             </>
           )}
         </View>
+        {/* Move stage dots to bottom right */}
+        {item.status === 'active' && item.current_cycle && (
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12 }}>
+            <StageDots currentStage={item.current_cycle.stage || 1} />
+          </View>
+        )}
       </TouchableOpacity>
     );
   };

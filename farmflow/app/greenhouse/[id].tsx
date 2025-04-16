@@ -192,7 +192,8 @@ export default function GreenhouseDetail() {
       }
       const data = await response.json();
       
-      console.log('Raw greenhouse data from backend:', data);
+      // Log the backend response for debugging
+      console.log('Greenhouse details API response:', data);
       
       // Update greenhouse state with the response data
       const updatedGreenhouse = {
@@ -203,13 +204,13 @@ export default function GreenhouseDetail() {
         created_at: data.created_at,
         updated_at: data.updated_at,
         currentCrop: data.current_cycle ? {
-          type: data.current_cycle.crop_name || '',
-          variety: data.current_cycle.seed_type || '',
-          plantingDate: data.current_cycle.planting_date || new Date().toISOString(),
-          expectedHarvestDate: data.current_cycle.expected_harvest_date || new Date().toISOString(),
+          type: data.current_cycle.type || '',
+          variety: data.current_cycle.variety || '',
+          plantingDate: data.current_cycle.plantingDate || new Date().toISOString(),
+          expectedHarvestDate: data.current_cycle.expectedHarvestDate || new Date().toISOString(),
           stage: data.current_cycle.stage || 1,
-          totalStages: data.current_cycle.total_stages || 5,
-          stageName: data.current_cycle.stage_name || getStageName(data.current_cycle.stage || 1),
+          totalStages: data.current_cycle.totalStages || 5,
+          stageName: data.current_cycle.stageName || getStageName(data.current_cycle.stage || 1),
           areaUsed: '0' // Default value since it's not in the backend data
         } : undefined
       };
@@ -543,11 +544,19 @@ export default function GreenhouseDetail() {
         <Text style={styles.backLinkText}>Greenhouses</Text>
       </TouchableOpacity>
 
-      {/* Greenhouse ID and Status */}
+      {/* Greenhouse ID, Crop, and Status */}
       <View style={styles.header}>
-        <Text style={styles.greenhouseId}>{greenhouse.name}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+          <Text style={styles.greenhouseId}>{greenhouse.name}</Text>
+          {greenhouse.status === 'active' && greenhouse.currentCrop?.type && (
+            <Text style={{ marginLeft: 16, fontSize: 18, color: '#4CAF50', fontWeight: '600' }}>
+              {greenhouse.currentCrop.type}
+              {greenhouse.currentCrop.variety ? ` (${greenhouse.currentCrop.variety})` : ''}
+            </Text>
+          )}
+        </View>
         <View style={styles.headerActions}>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(greenhouse.status) }]}>
+          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(greenhouse.status) }]}> 
             <Text style={styles.statusText}>
               {greenhouse.status.charAt(0).toUpperCase() + greenhouse.status.slice(1)}
             </Text>

@@ -135,13 +135,21 @@ def update_growing_stage(request, greenhouse_id):
         return Response({"error": "No active growing cycle found"}, 
                        status=status.HTTP_400_BAD_REQUEST)
 
+    # Update the stage and stage name
     new_stage = request.data.get('stage')
     print(f"Received stage update request: {request.data}")  # Debug log
     print(f"Current active cycle: {active_cycle}")  # Debug log
+    print(f"New stage value: {new_stage}")  # Debug log
+    print(f"New stage type: {type(new_stage)}")  # Debug log
     
-    if not new_stage or not isinstance(new_stage, int) or new_stage < 1 or new_stage > 5:
-        print(f"Invalid stage number: {new_stage}")  # Debug log
-        return Response({"error": "Invalid stage number"}, 
+    try:
+        new_stage = int(new_stage)
+    except (TypeError, ValueError):
+        return Response({"error": "Stage must be a number"}, 
+                       status=status.HTTP_400_BAD_REQUEST)
+    
+    if new_stage < 1 or new_stage > 5:
+        return Response({"error": "Stage must be between 1 and 5"}, 
                        status=status.HTTP_400_BAD_REQUEST)
 
     # Update the stage and stage name
