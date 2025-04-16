@@ -97,11 +97,11 @@ interface CurrentCrop {
 }
 
 interface PlantingForm {
-  cropType: string;
-  seedVariety: string;
-  plantingDate: Date;
-  harvestDate: Date;
-  areaUsed: string;
+  crop_name: string;
+  seed_type: string;
+  planting_date: Date;
+  harvest_date: Date;
+  area_used: string;
 }
 
 export default function GreenhouseDetail() {
@@ -166,11 +166,11 @@ export default function GreenhouseDetail() {
   const [showPlantingDate, setShowPlantingDate] = useState(false);
   const [showHarvestDate, setShowHarvestDate] = useState(false);
   const [plantingForm, setPlantingForm] = useState<PlantingForm>({
-    cropType: '',
-    seedVariety: '',
-    plantingDate: new Date(),
-    harvestDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // 90 days from now
-    areaUsed: ''
+    crop_name: '',
+    seed_type: '',
+    planting_date: new Date(),
+    harvest_date: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // 90 days from now
+    area_used: ''
   });
 
   useEffect(() => {
@@ -182,15 +182,20 @@ export default function GreenhouseDetail() {
       setLoading(true);
       setError(null);
 
+      console.log(`Fetching data for greenhouse ID: ${id}`);
+
       // Fetch greenhouse details
       const response = await fetch(`http://localhost:8000/api/greenhouses/${id}/`);
       if (!response.ok) {
+        console.error('Failed to fetch greenhouse details. Status:', response.status);
         throw new Error('Failed to fetch greenhouse details');
       }
       const data = await response.json();
       
+      console.log('Raw greenhouse data from backend:', data);
+      
       // Update greenhouse state with the response data
-      setGreenhouse({
+      const updatedGreenhouse = {
         id: data.id,
         name: data.name,
         size: data.size,
@@ -198,37 +203,69 @@ export default function GreenhouseDetail() {
         created_at: data.created_at,
         updated_at: data.updated_at,
         currentCrop: data.current_cycle ? {
-          type: data.current_cycle.type,
-          variety: data.current_cycle.variety,
-          plantingDate: data.current_cycle.plantingDate,
-          expectedHarvestDate: data.current_cycle.expectedHarvestDate,
-          stage: data.current_cycle.stage,
-          totalStages: data.current_cycle.totalStages,
-          stageName: data.current_cycle.stageName,
-          areaUsed: data.current_cycle.areaUsed || '0'
+          type: data.current_cycle.crop_name || '',
+          variety: data.current_cycle.seed_type || '',
+          plantingDate: data.current_cycle.planting_date || new Date().toISOString(),
+          expectedHarvestDate: data.current_cycle.expected_harvest_date || new Date().toISOString(),
+          stage: data.current_cycle.stage || 1,
+          totalStages: data.current_cycle.total_stages || 5,
+          stageName: data.current_cycle.stage_name || getStageName(data.current_cycle.stage || 1),
+          areaUsed: '0' // Default value since it's not in the backend data
         } : undefined
-      });
+      };
+
+      console.log('Processed greenhouse state:', updatedGreenhouse);
+      
+      // If greenhouse is active but has no current crop, update status in backend
+      if (updatedGreenhouse.status === 'active' && !updatedGreenhouse.currentCrop) {
+        console.log('Greenhouse is active but has no current crop. Updating status in backend.');
+        try {
+          const statusResponse = await fetch(`http://localhost:8000/api/greenhouses/${id}/status/`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ status: 'inactive' }),
+          });
+
+          if (!statusResponse.ok) {
+            console.error('Failed to update greenhouse status:', statusResponse.status);
+          } else {
+            const updatedStatusData = await statusResponse.json();
+            console.log('Status updated in backend:', updatedStatusData);
+            updatedGreenhouse.status = 'inactive';
+          }
+        } catch (err) {
+          console.error('Error updating greenhouse status:', err);
+        }
+      }
+      
+      setGreenhouse(updatedGreenhouse);
 
       // Fetch maintenance activities
       const maintenanceResponse = await fetch(`http://localhost:8000/api/greenhouses/${id}/maintenance/`);
       if (maintenanceResponse.ok) {
         const maintenanceData = await maintenanceResponse.json();
+        console.log('Maintenance activities:', maintenanceData);
         setMaintenanceActivities(maintenanceData);
+      } else {
+        console.warn('Failed to fetch maintenance activities. Status:', maintenanceResponse.status);
       }
 
       // Fetch Inventory Usage History for this greenhouse
       const usageResponse = await fetch(`http://localhost:8000/api/inventory-usage/?greenhouse_id=${id}`);
       if (usageResponse.ok) {
         const usageData = await usageResponse.json();
+        console.log('Inventory usage history:', usageData);
         setInventoryUsage(usageData);
       } else {
-        console.warn('Could not fetch inventory usage history for this greenhouse.');
+        console.warn('Could not fetch inventory usage history. Status:', usageResponse.status);
         setInventoryUsage([]);
       }
 
     } catch (err) {
+      console.error('Detailed error in fetchGreenhouseData:', err);
       setError(err instanceof Error ? err.message : 'An error occurred');
-      console.error('Error fetching greenhouse data:', err);
     } finally {
       setLoading(false);
     }
@@ -295,17 +332,16 @@ export default function GreenhouseDetail() {
     try {
       setLoading(true);
       
-      // First, update the greenhouse status and add the crop on the server
       const response = await fetch(`http://localhost:8000/api/greenhouses/${id}/start_planting/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          crop_name: plantingForm.cropType,
-          seed_type: plantingForm.seedVariety,
-          planting_date: plantingForm.plantingDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
-          expected_harvest_date: plantingForm.harvestDate.toISOString().split('T')[0] // Format as YYYY-MM-DD
+          crop_name: plantingForm.crop_name,
+          seed_type: plantingForm.seed_type,
+          planting_date: plantingForm.planting_date.toISOString().split('T')[0],
+          expected_harvest_date: plantingForm.harvest_date.toISOString().split('T')[0]
         }),
       });
 
@@ -315,9 +351,26 @@ export default function GreenhouseDetail() {
       }
 
       const updatedData = await response.json();
+      console.log('Received updated data:', updatedData);
       
       // Update local state with the server response
-      setGreenhouse(updatedData);
+      const updatedGreenhouse: Greenhouse = {
+        ...greenhouse,
+        status: 'active' as Status,
+        currentCrop: updatedData.current_cycle ? {
+          type: updatedData.current_cycle.crop_name,
+          variety: updatedData.current_cycle.seed_type,
+          plantingDate: updatedData.current_cycle.planting_date,
+          expectedHarvestDate: updatedData.current_cycle.expected_harvest_date,
+          areaUsed: '0',
+          stage: 1,
+          totalStages: 5,
+          stageName: 'Germination'
+        } : undefined
+      };
+      
+      console.log('Updating greenhouse state with:', updatedGreenhouse);
+      setGreenhouse(updatedGreenhouse);
       
       // Show success message
       Alert.alert('Success', 'Planting started successfully!');
@@ -333,48 +386,92 @@ export default function GreenhouseDetail() {
   const handleStageChange = async (newStage: number) => {
     try {
       setLoading(true);
+      console.log('Current greenhouse state before update:', greenhouse);
       console.log('Current stage before update:', greenhouse.currentCrop?.stage);
       console.log('Attempting to update to stage:', newStage);
+      
+      // Check if there's an active cycle
+      if (!greenhouse.currentCrop) {
+        console.error('No current crop found in greenhouse state. Greenhouse data:', greenhouse);
+        // Show the planting form
+        setGreenhouse(prev => ({ ...prev, status: 'inactive' }));
+        throw new Error('No active growing cycle found. Please start a new planting cycle first.');
+      }
+      
+      // Ensure newStage is a number
+      const stageNumber = Number(newStage);
+      if (isNaN(stageNumber)) {
+        throw new Error('Invalid stage number');
+      }
+      
+      // Validate stage range
+      if (stageNumber < 1 || stageNumber > 5) {
+        throw new Error('Stage must be between 1 and 5');
+      }
+      
+      const requestData = {
+        stage: stageNumber
+      };
+      
+      console.log('Sending stage update request to:', `http://localhost:8000/api/greenhouses/${id}/update_stage/`);
+      console.log('Request data:', requestData);
       
       const response = await fetch(`http://localhost:8000/api/greenhouses/${id}/update_stage/`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          stage: newStage
-        }),
+        body: JSON.stringify(requestData),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
+        console.error('Error response from server:', errorData);
         throw new Error(errorData.error || 'Failed to update stage');
       }
 
       const updatedData = await response.json();
-      console.log('Updated data received:', updatedData);
+      console.log('Updated data received from server:', updatedData);
       
       // Update the greenhouse state with the new data
-      setGreenhouse(prev => ({
-        ...prev,
+      const updatedState = {
+        ...greenhouse,
         currentCrop: {
-          ...(prev.currentCrop || {}),
-          stage: newStage,
-          stageName: getStageName(newStage),
-          type: prev.currentCrop?.type || '',
-          variety: prev.currentCrop?.variety || '',
-          plantingDate: prev.currentCrop?.plantingDate || new Date().toISOString(),
-          expectedHarvestDate: prev.currentCrop?.expectedHarvestDate || new Date().toISOString(),
-          areaUsed: prev.currentCrop?.areaUsed || '0',
+          ...(greenhouse.currentCrop || {}),
+          stage: stageNumber,
+          stageName: getStageName(stageNumber),
+          type: greenhouse.currentCrop?.type || '',
+          variety: greenhouse.currentCrop?.variety || '',
+          plantingDate: greenhouse.currentCrop?.plantingDate || new Date().toISOString(),
+          expectedHarvestDate: greenhouse.currentCrop?.expectedHarvestDate || new Date().toISOString(),
+          areaUsed: greenhouse.currentCrop?.areaUsed || '0',
           totalStages: 5
         }
-      }));
+      };
       
-      console.log('Greenhouse state updated with new stage:', newStage);
+      console.log('New greenhouse state after update:', updatedState);
+      setGreenhouse(updatedState);
       
     } catch (error: any) {
-      console.error('Failed to update stage:', error);
-      Alert.alert('Error', error.message || 'Failed to update stage. Please try again.');
+      console.error('Detailed error in handleStageChange:', error);
+      Alert.alert(
+        'Error',
+        error.message || 'Failed to update stage. Please try again.',
+        [
+          {
+            text: 'Start New Planting',
+            onPress: () => {
+              console.log('User chose to start new planting');
+              setGreenhouse(prev => ({ ...prev, status: 'inactive' }));
+            },
+            style: 'default'
+          },
+          {
+            text: 'OK',
+            style: 'cancel'
+          }
+        ]
+      );
     } finally {
       setLoading(false);
     }
@@ -440,10 +537,10 @@ export default function GreenhouseDetail() {
       {/* Back to Dashboard */}
       <TouchableOpacity 
         style={styles.backLink}
-        onPress={() => router.push('/dashboard')}
+        onPress={() => router.push('/greenhouses')}
       >
         <MaterialIcons name="arrow-back" size={24} color="#2C3E50" />
-        <Text style={styles.backLinkText}>Dashboard</Text>
+        <Text style={styles.backLinkText}>Greenhouses</Text>
       </TouchableOpacity>
 
       {/* Greenhouse ID and Status */}
@@ -474,8 +571,8 @@ export default function GreenhouseDetail() {
         <Text style={styles.label}>Crop Type</Text>
         <TextInput
           style={styles.input}
-          value={plantingForm.cropType}
-          onChangeText={(text) => setPlantingForm(prev => ({ ...prev, cropType: text }))}
+          value={plantingForm.crop_name}
+          onChangeText={(text) => setPlantingForm(prev => ({ ...prev, crop_name: text }))}
           placeholder="e.g., Tomatoes, Lettuce"
         />
       </View>
@@ -484,8 +581,8 @@ export default function GreenhouseDetail() {
         <Text style={styles.label}>Seed Variety</Text>
         <TextInput
           style={styles.input}
-          value={plantingForm.seedVariety}
-          onChangeText={(text) => setPlantingForm(prev => ({ ...prev, seedVariety: text }))}
+          value={plantingForm.seed_type}
+          onChangeText={(text) => setPlantingForm(prev => ({ ...prev, seed_type: text }))}
           placeholder="e.g., Beefsteak, Romaine"
         />
       </View>
@@ -496,7 +593,7 @@ export default function GreenhouseDetail() {
           style={styles.dateInput}
           onPress={() => setShowPlantingDate(true)}
         >
-          <Text>{plantingForm.plantingDate.toLocaleDateString()}</Text>
+          <Text>{plantingForm.planting_date.toLocaleDateString()}</Text>
           <MaterialIcons name="calendar-today" size={20} color="#666" />
         </TouchableOpacity>
       </View>
@@ -507,7 +604,7 @@ export default function GreenhouseDetail() {
           style={styles.dateInput}
           onPress={() => setShowHarvestDate(true)}
         >
-          <Text>{plantingForm.harvestDate.toLocaleDateString()}</Text>
+          <Text>{plantingForm.harvest_date.toLocaleDateString()}</Text>
           <MaterialIcons name="calendar-today" size={20} color="#666" />
         </TouchableOpacity>
       </View>
@@ -516,7 +613,7 @@ export default function GreenhouseDetail() {
         mode="contained" 
         onPress={handleStartPlanting}
         loading={loading}
-        disabled={loading || !plantingForm.cropType || !plantingForm.seedVariety}
+        disabled={loading || !plantingForm.crop_name || !plantingForm.seed_type}
         style={styles.submitButton}
       >
         Start Planting
@@ -654,12 +751,12 @@ export default function GreenhouseDetail() {
       {/* Date Pickers */}
       {showPlantingDate && (
         <DateTimePicker
-          value={plantingForm.plantingDate}
+          value={plantingForm.planting_date}
           mode="date"
           onChange={(event, date) => {
             setShowPlantingDate(false);
             if (date) {
-              setPlantingForm(prev => ({ ...prev, plantingDate: date }));
+              setPlantingForm(prev => ({ ...prev, planting_date: date }));
             }
           }}
         />
@@ -667,12 +764,12 @@ export default function GreenhouseDetail() {
 
       {showHarvestDate && (
         <DateTimePicker
-          value={plantingForm.harvestDate}
+          value={plantingForm.harvest_date}
           mode="date"
           onChange={(event, date) => {
             setShowHarvestDate(false);
             if (date) {
-              setPlantingForm(prev => ({ ...prev, harvestDate: date }));
+              setPlantingForm(prev => ({ ...prev, harvest_date: date }));
             }
           }}
         />

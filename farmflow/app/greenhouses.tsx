@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator, Modal, Alert } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAppDispatch, useAppSelector } from './store/hooks';
@@ -95,14 +95,30 @@ export default function GreenhousesScreen() {
   const handleStatusChange = async (newStatus: Status) => {
     if (selectedGreenhouse) {
       try {
-        await dispatch(updateGreenhouseStatus({ 
+        // First update the backend
+        const response = await fetch(`http://localhost:8000/api/greenhouses/${selectedGreenhouse.id}/status/`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ status: newStatus }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to update status');
+        }
+
+        // Update the local state
+        dispatch(updateGreenhouseStatus({ 
           id: selectedGreenhouse.id, 
           status: newStatus 
-        })).unwrap();
+        }));
+
         setShowStatusModal(false);
         setSelectedGreenhouseForStatus(null);
       } catch (error) {
         console.error('Failed to update status:', error);
+        Alert.alert('Error', 'Failed to update greenhouse status. Please try again.');
       }
     }
   };

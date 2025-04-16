@@ -1,50 +1,109 @@
-# Welcome to your Expo app 👋
+# FarmFlow Mobile App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A React Native mobile application built with Expo for farm management.
 
-## Get started
+## Prerequisites
 
-1. Install dependencies
+Before you begin, ensure you have the following installed:
+- Node.js (v18 or higher)
+- npm (comes with Node.js)
+- Expo CLI (will be installed locally)
+- iOS Simulator (for Mac users) or Android Studio (for Android development)
+- Expo Go app on your mobile device (optional, for testing on real devices)
 
+## Installation Steps
+
+1. **Clone the repository**
+   ```bash
+   git clone <your-repository-url>
+   cd farmflow
+   ```
+
+2. **Install dependencies**
    ```bash
    npm install
    ```
 
-2. Start the app
-
+3. **Start the development server**
    ```bash
-    npx expo start
+   npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+## Running the App
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+After starting the development server, you have several options:
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+### On Mobile Device
+1. Install the Expo Go app from your device's app store
+2. Scan the QR code displayed in the terminal with:
+   - Android: Expo Go app
+   - iOS: Camera app
 
-## Get a fresh project
+### On Simulator/Emulator
+- Press 'i' to open in iOS simulator (Mac only)
+- Press 'a' to open in Android emulator
 
-When you're ready, run:
+### On Web
+- Press 'w' to open in web browser
 
-```bash
-npm run reset-project
+## Development Commands
+
+- `npm start` - Start the Expo development server
+- `npm run android` - Start the app on Android emulator
+- `npm run ios` - Start the app on iOS simulator
+- `npm run web` - Start the app in web browser
+- `npm test` - Run tests
+- `npm run lint` - Run linter
+
+## Project Structure
+
+```
+farmflow/
+├── assets/           # Images, fonts, and other static assets
+├── components/       # Reusable React components
+├── screens/          # Screen components
+├── navigation/       # Navigation configuration
+├── services/         # API and other services
+├── store/            # Redux store configuration
+└── utils/            # Utility functions
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Dependencies
 
-## Learn more
+This project uses:
+- Expo SDK 52
+- React Native
+- React Navigation
+- Redux Toolkit
+- Native Base UI
+- And other essential React Native libraries
 
-To learn more about developing your project with Expo, look at the following resources:
+## Troubleshooting
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+If you encounter any issues:
 
-## Join the community
+1. **Clear npm cache**
+   ```bash
+   npm cache clean --force
+   ```
 
-Join our community of developers creating universal apps.
+2. **Reinstall dependencies**
+   ```bash
+   rm -rf node_modules
+   npm install
+   ```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+3. **Reset Metro bundler cache**
+   ```bash
+   npx expo start --clear
+   ```
+
+## Contributing
+
+1. Create a new branch for your feature
+2. Make your changes
+3. Submit a pull request
+
+## License
+
+[Your License Here]
