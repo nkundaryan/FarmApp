@@ -693,7 +693,7 @@ export default function GreenhouseDetail() {
         </View>
       </View>
 
-      {/* Task List and Issue Log Side by Side */}
+      {/* Task List and Inventory Used Side by Side */}
       <View style={styles.horizontalSection}>
         {/* Task List Box */}
         <View style={styles.boxContainer}>
@@ -712,11 +712,32 @@ export default function GreenhouseDetail() {
           </View>
         </View>
 
-        {/* Issue Log Box */}
+        {/* Inventory Used Box */}
         <View style={styles.boxContainer}>
-          <Text style={styles.sectionTitle}>Issue Log</Text>
+          <Text style={styles.sectionTitle}>Inventory Used</Text>
           <View style={styles.issueList}>
-            {/* Add issue log content here */}
+            {inventoryUsage.length === 0 ? (
+              <Text style={{ color: '#7F8C8D', fontStyle: 'italic', marginTop: 8 }}>No inventory usage records.</Text>
+            ) : (
+              <View>
+                <View style={{ flexDirection: 'row', marginBottom: 8 }}>
+                  <Text style={{ flex: 1, fontWeight: 'bold' }}>Date</Text>
+                  <Text style={{ flex: 1, fontWeight: 'bold' }}>Name</Text>
+                  <Text style={{ flex: 1, fontWeight: 'bold' }}>Quantity</Text>
+                  <Text style={{ flex: 1, fontWeight: 'bold' }}>Units</Text>
+                  <Text style={{ flex: 2, fontWeight: 'bold' }}>Purpose</Text>
+                </View>
+                {inventoryUsage.map((usage) => (
+                  <View key={usage.id} style={{ flexDirection: 'row', marginBottom: 4 }}>
+                    <Text style={{ flex: 1 }}>{new Date(usage.usage_date).toLocaleDateString()}</Text>
+                    <Text style={{ flex: 1 }}>{usage.inventory_item.name}</Text>
+                    <Text style={{ flex: 1 }}>{usage.quantity_used}</Text>
+                    <Text style={{ flex: 1 }}>{usage.inventory_item.unit}</Text>
+                    <Text style={{ flex: 2 }}>{usage.purpose_note}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
         </View>
       </View>
