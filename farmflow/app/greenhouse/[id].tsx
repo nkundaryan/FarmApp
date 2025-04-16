@@ -6,6 +6,7 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { updateGreenhouseStatus } from '../store/slices/greenhouseSlice';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Divider, Checkbox, DataTable, ProgressBar, Button } from 'react-native-paper';
+import { API_URL } from '../config';
 
 type Status = 'active' | 'maintenance' | 'inactive';
 
@@ -185,7 +186,7 @@ export default function GreenhouseDetail() {
       console.log(`Fetching data for greenhouse ID: ${id}`);
 
       // Fetch greenhouse details
-      const response = await fetch(`http://localhost:8000/api/greenhouses/${id}/`);
+      const response = await fetch(`${API_URL}/api/greenhouses/${id}/`);
       if (!response.ok) {
         console.error('Failed to fetch greenhouse details. Status:', response.status);
         throw new Error('Failed to fetch greenhouse details');
@@ -221,7 +222,7 @@ export default function GreenhouseDetail() {
       if (updatedGreenhouse.status === 'active' && !updatedGreenhouse.currentCrop) {
         console.log('Greenhouse is active but has no current crop. Updating status in backend.');
         try {
-          const statusResponse = await fetch(`http://localhost:8000/api/greenhouses/${id}/status/`, {
+          const statusResponse = await fetch(`${API_URL}/api/greenhouses/${id}/status/`, {
             method: 'PATCH',
             headers: {
               'Content-Type': 'application/json',
@@ -244,7 +245,7 @@ export default function GreenhouseDetail() {
       setGreenhouse(updatedGreenhouse);
 
       // Fetch maintenance activities
-      const maintenanceResponse = await fetch(`http://localhost:8000/api/greenhouses/${id}/maintenance/`);
+      const maintenanceResponse = await fetch(`${API_URL}/api/greenhouses/${id}/maintenance/`);
       if (maintenanceResponse.ok) {
         const maintenanceData = await maintenanceResponse.json();
         console.log('Maintenance activities:', maintenanceData);
@@ -254,7 +255,7 @@ export default function GreenhouseDetail() {
       }
 
       // Fetch Inventory Usage History for this greenhouse
-      const usageResponse = await fetch(`http://localhost:8000/api/inventory-usage/?greenhouse_id=${id}`);
+      const usageResponse = await fetch(`${API_URL}/api/inventory-usage/?greenhouse_id=${id}`);
       if (usageResponse.ok) {
         const usageData = await usageResponse.json();
         console.log('Inventory usage history:', usageData);
@@ -281,8 +282,8 @@ export default function GreenhouseDetail() {
     console.log(`[handleDelete] Attempting to delete greenhouse with id: ${id}`);
     
     try {
-      console.log(`[handleDelete] Sending DELETE request to: http://localhost:8000/api/greenhouses/${id}/`);
-      const response = await fetch(`http://localhost:8000/api/greenhouses/${id}/`, {
+      console.log(`[handleDelete] Sending DELETE request to: ${API_URL}/api/greenhouses/${id}/`);
+      const response = await fetch(`${API_URL}/api/greenhouses/${id}/`, {
         method: 'DELETE'
       });
       
@@ -308,7 +309,7 @@ export default function GreenhouseDetail() {
     if (!greenhouse) return;
 
     try {
-      const response = await fetch(`http://localhost:8000/api/greenhouses/${greenhouse.id}/status`, {
+      const response = await fetch(`${API_URL}/api/greenhouses/${greenhouse.id}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -333,7 +334,7 @@ export default function GreenhouseDetail() {
     try {
       setLoading(true);
       
-      const response = await fetch(`http://localhost:8000/api/greenhouses/${id}/start_planting/`, {
+      const response = await fetch(`${API_URL}/api/greenhouses/${id}/start_planting/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -414,10 +415,10 @@ export default function GreenhouseDetail() {
         stage: stageNumber
       };
       
-      console.log('Sending stage update request to:', `http://localhost:8000/api/greenhouses/${id}/update_stage/`);
+      console.log('Sending stage update request to:', `${API_URL}/api/greenhouses/${id}/update_stage/`);
       console.log('Request data:', requestData);
       
-      const response = await fetch(`http://localhost:8000/api/greenhouses/${id}/update_stage/`, {
+      const response = await fetch(`${API_URL}/api/greenhouses/${id}/update_stage/`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

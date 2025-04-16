@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { Text, Card, Button, List, useTheme, FAB, TextInput, Portal, Modal, Divider, Chip } from 'react-native-paper';
 import { MaterialIcons } from '@expo/vector-icons';
+import { API_URL } from './config';
 
 interface InventoryItem {
   id: number;
@@ -104,7 +105,7 @@ export default function InventoryScreen() {
 
   const fetchActiveGreenhouses = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/greenhouses/?status=active');
+      const response = await fetch(`${API_URL}/api/greenhouses/?status=active`);
       if (!response.ok) {
         throw new Error('Failed to fetch active greenhouses');
       }

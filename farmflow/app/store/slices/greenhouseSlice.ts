@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { API_URL } from '../../config';
 
 export type Status = 'active' | 'maintenance' | 'inactive';
 
@@ -28,7 +29,7 @@ const initialState: GreenhouseState = {
 export const fetchGreenhouses = createAsyncThunk(
   'greenhouses/fetchAll',
   async () => {
-    const response = await fetch('http://localhost:8000/api/greenhouses/');
+    const response = await fetch(`${API_URL}/api/greenhouses/`);
     if (!response.ok) {
       throw new Error('Failed to fetch greenhouses');
     }
@@ -39,7 +40,7 @@ export const fetchGreenhouses = createAsyncThunk(
 export const addGreenhouse = createAsyncThunk(
   'greenhouses/add',
   async (greenhouse: Omit<Greenhouse, 'id' | 'created_at' | 'updated_at'>) => {
-    const response = await fetch('http://localhost:8000/api/greenhouses/', {
+    const response = await fetch(`${API_URL}/api/greenhouses/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -56,7 +57,7 @@ export const addGreenhouse = createAsyncThunk(
 export const updateGreenhouseStatus = createAsyncThunk(
   'greenhouses/updateStatus',
   async ({ id, status }: { id: number; status: Status }) => {
-    const response = await fetch(`http://localhost:8000/api/greenhouses/${id}/`, {
+    const response = await fetch(`${API_URL}/api/greenhouses/${id}/`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
